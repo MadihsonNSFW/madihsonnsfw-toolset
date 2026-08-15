@@ -1,0 +1,14 @@
+# Runtime dependencies for the MadihsonNSFW Toolset desktop app.
+#
+# Developed and tested against Python 3.10 on Windows. The versions in comments
+# are what the shipped builds are made with; the floors below are deliberately
+# loose so a newer wheel is not blocked for no reason.
+
+PySide6>=6.6            # tested: 6.11.1 - the whole interface
+psutil>=5.9             # tested: 7.2.2  - RAM cards, process/singleton handling
+nvidia-ml-py>=12.0      # tested: 13.610.43 - VRAM cards (imports as `pynvml`)
+zstandard>=0.21         # tested: 0.25.0 - library item and release compression
+
+# NOTE: the Blender half (`blender_addon/`) has no pip dependencies. It runs
+# inside Blender and uses only Blender's own bundled Python, including numpy and
+# OpenImageIO.

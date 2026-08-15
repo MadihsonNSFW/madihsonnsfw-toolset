@@ -1,0 +1,24 @@
+# Normalise line endings in the repository; check out native.
+* text=auto
+
+# Windows-only scripts. run_all.ps1 in particular is read as ANSI by
+# PowerShell 5.1, so it must arrive with CRLF and stay ASCII.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never touched.
+*.exe binary
+*.dll binary
+*.blend binary
+*.blend1 binary
+*.zip binary
+*.ico binary
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.abc binary
+
+# Generated: the add-on packed into the app as base64. Huge, and a diff of it
+# tells nobody anything.
+app/addon_bundle.py -diff linguist-generated

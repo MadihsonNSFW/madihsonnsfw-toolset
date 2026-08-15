@@ -1,0 +1,109 @@
+site_name: MadihsonNSFW Toolset
+site_description: >-
+  A desktop companion for Blender: pose and animation library, render queue,
+  bone picker, animation layers, video reference and rig tools.
+site_url: https://madihsonnsfw.github.io/madihsonnsfw-toolset/
+site_author: MadihsonNSFW
+
+repo_url: https://github.com/MadihsonNSFW/madihsonnsfw-toolset
+repo_name: MadihsonNSFW/madihsonnsfw-toolset
+edit_uri: edit/main/manual/
+
+copyright: Copyright &copy; MadihsonNSFW &mdash; GPL-3.0
+
+# The public manual. The repository's internal engineering notes are not part
+# of the site and are not published.
+docs_dir: manual
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow system theme
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Link to this section
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: install.md
+      - Connecting Blender: connecting-blender.md
+      - Troubleshooting: troubleshooting.md
+  - The tabs:
+      - Studio Library: tabs/studio-library.md
+      - Rendering: tabs/rendering.md
+      - Bone picker: tabs/bone-picker.md
+      - Anim Layers: tabs/anim-layers.md
+      - Node Setup: tabs/node-setup.md
+      - Node Editor: tabs/node-editor.md
+      - MadiRef: tabs/madiref.md
+      - Optimization: tabs/optimization.md
+      - Physics: tabs/physics.md
+      - NSFW Tools: tabs/nsfw-tools.md
+  - Developers:
+      - Building from source: building.md
+      - The bridge protocol: bridge.md
+      - Running the tests: testing.md
+      - Contributing: contributing.md
+  - Release notes: changelog.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MadihsonNSFW
+      name: MadihsonNSFW on GitHub

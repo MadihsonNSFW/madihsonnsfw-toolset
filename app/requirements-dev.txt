@@ -1,0 +1,6 @@
+# Everything in requirements.txt, plus what is needed to BUILD the executable.
+# Not needed to run the app from source, and not needed to run the tests.
+
+-r requirements.txt
+
+pyinstaller>=6.0        # tested: 6.21.0 - app\build_exe.ps1 drives this

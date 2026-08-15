@@ -1,0 +1,15 @@
+schema_version = "1.0.0"
+
+id = "madi_anim_library"
+version = "0.46.0"
+name = "MadihsonNSFW Toolset (Bridge)"
+tagline = "Studio-Library-style pose and animation library bridge for Blender"
+maintainer = "MadihsonNSFW <martymason4704@gmail.com>"
+type = "add-on"
+tags = ["Animation"]
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+network = "Local bridge server for the MadihsonNSFW Toolset desktop app (127.0.0.1 only)"
+files = "Reads and writes pose/animation items in the library folder"

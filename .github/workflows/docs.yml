@@ -1,0 +1,58 @@
+name: Docs
+
+# Builds the manual with MkDocs Material and publishes it to GitHub Pages.
+# The site source is manual/ - see mkdocs.yml.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "manual/**"
+      - "mkdocs.yml"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; never cancel one halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # MkDocs itself is pinned as well: 2.0 removes the plugin and theming
+      # systems outright, so an unpinned install would break this build the day
+      # it lands.
+      - name: Install MkDocs Material
+        run: pip install "mkdocs-material>=9.5,<10" "mkdocs>=1.6,<2"
+
+      # --strict turns a broken internal link or an unlisted page into a build
+      # failure, so a dead link is caught here rather than by a reader.
+      - name: Build
+        run: mkdocs build --strict
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
