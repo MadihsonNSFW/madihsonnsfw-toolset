@@ -67,14 +67,25 @@ update never touches your library, your queue, your presets or your baked maps.
 
 ## Updating
 
-Check for updates from the status bar.
+**The app does not update itself, and makes no network connections at all.**
 
-A release downloads only the files that changed, verifies every byte against a
-signature, proves the new build actually starts, and puts the old one back if it
-does not. Updating is free for everyone, and so is every tab.
+New releases are published on GitHub:
 
-After the app updates, press **⚙ Settings ▸ Update add-on** so the Blender half
-matches.
+1. Download the latest build from the
+   [Releases page](https://github.com/MadihsonNSFW/madihsonnsfw-toolset/releases).
+2. Close the app.
+3. Unzip it over your existing folder.
+4. Start it, then press **⚙ Settings ▸ Update add-on** so the Blender half
+   matches.
+
+!!! success "Your own files are not in there"
+    The library, render queue, presets and baked maps live outside the program
+    folder, so replacing it never touches them.
+
+!!! info "Why there is no auto-update"
+    Every tool is free and the source is public, so there is nothing to gate and
+    nobody to check in with. Removing the updater removed the last reason for
+    this app to open a socket to anywhere but your own Blender.
 
 ---
 

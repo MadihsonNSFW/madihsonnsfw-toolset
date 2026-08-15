@@ -5,13 +5,37 @@ drives it over a small local bridge, so your tools stop competing with the
 viewport for screen space. A few parts (the render queue, the library browser,
 importing) work with Blender closed entirely.
 
-**Eleven tabs, and every one of them is free.** Nothing in the Toolset needs
-a licence any more — premium pose and animation packs, sold separately, are
-the part that supports development.
+**Eleven tabs, and every one of them is free.** Nothing in the Toolset needs a
+licence, an account, or an internet connection. It is open source, and the
+Toolset makes **no network connections at all**.
 
 ---
 
 ## Update notes
+
+### 1.19.0 — open source, and the app stops phoning home
+
+**The Toolset is now on GitHub, and it no longer updates itself.**
+
+- **Nothing is sent anywhere, ever.** The licence check, the sign-in, the seat
+  system and the automatic update check are all gone — not disabled, removed.
+  The app talks to Blender on a port on your own machine and to nothing else.
+- **New versions come from GitHub.** Download a release, close the app, unzip it
+  over your folder. Your library, render queue, presets and baked maps live
+  outside the program folder, so an update never touches them.
+- **No more licence chip, Updates button, or "Check for updates" setting.**
+  There is nothing left for them to report.
+- **⚙ Settings ▸ Update add-on still works exactly as before.** That was never
+  a server feature — the app carries the Blender extension inside itself and
+  hands it straight over. It is the one thing that survived the clear-out.
+- **The Blender add-on drops its licence gate too** (0.47.0). No panel can say
+  "locked" any more, because there is nothing to lock with.
+
+⚠ **Update the Blender add-on for this one** (⚙ Settings ▸ **Update add-on**).
+The app and the extension are a matched pair, and 0.47.0 is where the gate is
+removed on Blender's side.
+
+**Where to get it:** <https://github.com/MadihsonNSFW/madihsonnsfw-toolset>
 
 ### 1.18.1 — the window has its own title bar, and the app starts faster
 

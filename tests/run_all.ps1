@@ -163,10 +163,9 @@ $appSuites = @(
     "app_madiref_test.py",
     # licensing: Ed25519 verify (RFC vectors), fingerprint, DPAPI storage,
     # the state machine, and the four gated tabs locking / unlocking live
-    "lic_client_test.py",
     # self-update: version comparison (which IS the anti-rollback rule, since a
     # manifest served from disk has no nonce), the signed manifest and the swap
-    "app_updater_test.py",
+    "app_addon_push_test.py",
     # Bone picker tab: the poll, the list-rebuild echo guard, retargeting bones
     # / group members / shape keys, the debounce, the capability gate
     "app_picker_test.py",

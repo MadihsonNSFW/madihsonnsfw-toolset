@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox,
                                QTabWidget, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
 
+import addon_push
 import bridge as bridgemod
 import chrome as chrome_mod
 import config
@@ -49,7 +50,6 @@ import importer
 import jiggle as jigglemod
 import lastrender
 import library
-import licensing
 import madiref.tab as madiref_tab
 import node_tools
 import nodecanvas
@@ -63,7 +63,6 @@ import render_tools
 import rendering as renderingmod
 import superfocus
 import theme
-import updater as updater_mod
 import updates as updates_mod
 import version
 import widgets
@@ -1390,11 +1389,9 @@ class AboutDialog(widgets.GuardedDialog):
         sub.setObjectName("dim")
         lay.addWidget(sub)
 
-        state = self._licence_line(license_manager)
-        if state:
-            note = QLabel(state)
-            note.setWordWrap(True)
-            lay.addWidget(note)
+        # ⚠ NO LICENCE LINE SINCE 1.19.0. There are no licences: every tool is
+        # free, the app contacts nothing, and an About box that discussed
+        # entitlement would be describing machinery that no longer exists.
 
         lay.addSpacing(4)
         line = QFrame()
@@ -1423,31 +1420,6 @@ class AboutDialog(widgets.GuardedDialog):
         close.rejected.connect(self.reject)
         close.accepted.connect(self.accept)
         lay.addWidget(close)
-
-    @staticmethod
-    def _licence_line(manager):
-        """One sentence about the licence, or None when there is nothing to say.
-
-        Returns None rather than "unlicensed" for someone who has never had a
-        licence: the free tabs are a complete product, and telling that user
-        they lack something is a sales pitch in a help dialog.
-        """
-        if manager is None:
-            return None
-        state = getattr(manager, "state", None)
-        if state == licensing.DEV:
-            return "Running from source — the paid tabs are unlocked for development."
-        if state == licensing.EXPIRED:
-            return manager.expiry_message()
-        if state not in licensing.UNLOCKED_STATES:
-            return None
-        left = getattr(manager, "days_left", None)
-        if left is None:
-            return "Licence active — it does not expire."
-        if left <= licensing.manager.EXPIRY_WARNING_DAYS:
-            return ("Licence active — it runs out in %d day%s. Sign in with Patreon "
-                    "again to renew for another year." % (left, "" if left == 1 else "s"))
-        return "Licence active — %d days left." % left
 
 
 class LibrarySettingsDialog(widgets.GuardedDialog):
@@ -1580,35 +1552,24 @@ class LibrarySettingsDialog(widgets.GuardedDialog):
         nline.setStyleSheet("color: %s;" % theme.BORDER)
         lay.addWidget(nline)
 
-        self.chk_update = QCheckBox("Check for updates automatically")
-        self.chk_update.setChecked(bool(cfg.get("auto_update", True)))
-        lay.addWidget(self.chk_update)
-        unote = QLabel("Looks for a newer version shortly after launch, and only "
-                       "after confirming your licence. It never installs on its "
-                       "own — an update is offered on the status bar and finishing "
-                       "one needs a restart. The installed app only; running from "
-                       "source never updates.")
-        unote.setObjectName("dim")
-        unote.setWordWrap(True)
-        lay.addWidget(unote)
-
+        # ⚠ NO AUTO-UPDATE SETTING SINCE 1.19.0 — there is no updater to
+        # configure. New versions come from the GitHub releases page.
         vrow = QHBoxLayout()
-        # The version has to be READABLE somewhere before an updater can mean
-        # anything: "you're on 1.0.0, 1.0.1 is available" is only useful to
-        # someone who can find the first number.
+        # The version has to be READABLE somewhere: "you're on 1.0.0, 1.0.1 is
+        # out" is only useful to someone who can find the first number.
         self.version_label = QLabel("%s %s" % (APP_NAME, version.APP_VERSION))
         self.version_label.setObjectName("dim")
         vrow.addWidget(self.version_label)
         vrow.addStretch(1)
-        self.btn_check_update = QPushButton("Check now")
-        self.btn_check_update.setEnabled(updater_mod.is_supported())
-        if not updater_mod.is_supported():
-            self.btn_check_update.setToolTip(
-                "Updates apply to the installed app — this is running from source.")
-        self.btn_check_update.clicked.connect(self._check_updates)
-        vrow.addWidget(self.btn_check_update)
         lay.addLayout(vrow)
-
+        unote = QLabel("This app does not update itself and makes no network "
+                       "connections. New releases are published on GitHub — "
+                       "download one and unzip it over this folder. Your "
+                       "library, render queue, presets and baked maps live "
+                       "outside it and are never touched.")
+        unote.setObjectName("dim")
+        unote.setWordWrap(True)
+        lay.addWidget(unote)
         # The Blender extension, installable straight from here. Deliberately
         # NOT behind the licence: the bridge serves Studio Library too, which is
         # free, so gating the add-on would break the free tab.
@@ -1674,19 +1635,12 @@ class LibrarySettingsDialog(widgets.GuardedDialog):
         return ("Blender add-on %s installed  ·  %s bundled"
                 % (live, bundled))
 
-    def _check_updates(self):
-        """Ask now. The dialog stays open — the answer lands on the status bar
-        and, if there is one, on the Update button beside it."""
-        owner = self._owner()
-        if owner is not None:
-            owner.updater.check(manual=True)
-
     def _install_addon(self):
         """Push the bundled add-on into the running Blender."""
         owner = self._owner()
         if owner is None:
             return
-        blocked = owner.updater.addon_block_reason()
+        blocked = owner.addon_pusher.block_reason()
         if blocked:
             # The chicken-and-egg case lands here: an add-on older than 0.7.0
             # has no addon_update command, so it cannot be told to update
@@ -1705,7 +1659,7 @@ class LibrarySettingsDialog(widgets.GuardedDialog):
             % bridgemod.EXPECTED_ADDON_VERSION,
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if answer == QMessageBox.Yes:
-            owner.updater.install_bundled_addon()
+            owner.addon_pusher.install_bundled_addon()
 
     def _save_addon(self):
         """Write the bundled add-on out for a manual install."""
@@ -1764,7 +1718,6 @@ class LibrarySettingsDialog(widgets.GuardedDialog):
                 "dev_edit": (self.chk_devedit.isChecked()
                              if self.chk_devedit is not None
                              else self._cfg_dev_edit),
-                "auto_update": self.chk_update.isChecked(),
                 "nodeeditor": node_group}
 
 
@@ -4262,32 +4215,23 @@ class MainWindow(QMainWindow):
         self.main_tabs.setObjectName("maintabs")
         self.main_tabs.setTabBar(SectionTabBar(
             theme.TAB_TINTS,
-            premium={title for _key, title, _blurb in self.GATED}))
+            premium=()))
         library_page = QWidget()
         lp = QVBoxLayout(library_page)
         lp.setContentsMargins(0, 0, 0, 0)
         lp.addWidget(self.tabs)
         self.main_tabs.addTab(library_page, "Studio Library")
-        # ⚠ NOT GATED, and that is the point. Along with Studio Library this is
-        # the only tab a locked build can open: what a paid build contains is
-        # exactly what somebody deciding whether to pay should be able to read.
-        # Added at the END, which is free to do now the NSFW tint follows a
-        # NAME rather than the last position (see SectionTabBar).
+        # What's New. Ships inside the build, so the release notes are readable
+        # with no internet — which is the one moment release notes are worth
+        # anything. Added at the END, which is free to do now the NSFW tint
+        # follows a NAME rather than the last position (see SectionTabBar).
         self.updates = updates_mod.UpdatesPage(self)
-
-        # Everything past Studio Library is members-only. While locked the
-        # tools are NEVER CONSTRUCTED — the tab holds a lock panel instead.
-        # That is as close to "withhold rather than disable" as a shipped exe
-        # can get, it saves the startup work, and it is what makes the eventual
-        # download-on-unlock step a drop-in (LICENSING_PLAN.md).
-        self.license = licensing.LicenseManager(self)
         # Anim Layers settings mirror. False means "we have not agreed with
         # Blender yet", which is what makes the app's copy win on first contact.
         self._prefs_synced = False
         self._prefs_pushed_at = 0.0
         # The add-on's licence gate is session-scoped, so this is re-pushed on
         # every connect rather than once at startup.
-        self._license_pushed = False
         self.rendering = None
         self.node_setup = None
         self.anim_layers = None
@@ -4312,10 +4256,8 @@ class MainWindow(QMainWindow):
         self.layer_options = None
         self.markers_tool = None
         self.bone_jiggle_tool = None
-        self._locked_pages = {}
-        # The FREE tool tabs, in order, before any locked one. Built
-        # unconditionally — that is what "free" means here — so every attribute
-        # they assign is live from startup and must NOT be in GATED_ATTRS.
+        # The tool tabs, in order. Every one is built unconditionally: since
+        # 1.19.0 there is no other kind.
         self._lazy_hosts = {}
         for key, title in self.FREE_TOOLS:
             if key in self.LAZY_TOOLS:
@@ -4329,10 +4271,8 @@ class MainWindow(QMainWindow):
                 self.main_tabs.addTab(host, title)
             else:
                 self.main_tabs.addTab(getattr(self, "_build_" + key)(), title)
-        self._add_gated_tabs()
         self.main_tabs.addTab(self.updates, "What's New")
         self._apply_tab_colors()
-        self.license.stateChanged.connect(self._on_license_state)
 
         # ---- the left rail takes over navigation -----------------------
         # ⚠ The tab bar is HIDDEN, not removed. Everything that reads the tab
@@ -4341,7 +4281,7 @@ class MainWindow(QMainWindow):
         self.main_tabs.tabBar().hide()
         self.section_rail = widgets.SectionRail(
             theme.TAB_TINTS,
-            premium={title for _key, title, _blurb in self.GATED})
+            premium=())
         for index in range(self.main_tabs.count()):
             title = self.main_tabs.tabText(index)
             key, group = SECTION_META.get(title, ("", ""))
@@ -4483,27 +4423,8 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.about_button)
 
         # "Check for updates" — free, and since 2026-08-06 so is INSTALLING one.
-        # ⚠ The old tooltip said installing needs a licence key. It does not any
-        # more (Marty: "anybody can check for update AND update the app"), and a
-        # tooltip that still said so would send paying and non-paying users
-        # alike to look for a licence problem that no longer exists.
-        # ⚠ The 10 s cooldown is Marty's ("so user can't spam the button") and
-        # it is also the polite thing to do to a rate-limited server route.
-        self.check_button = QPushButton("Updates")
-        self.check_button.setObjectName("flat")
-        # ⚠ Labelled "Updates", not "Check for updates": the status bar is a
-        # row of permanent widgets, so every one of them is a hard floor under
-        # how narrow the window can be dragged, and that label alone was 220 px
-        # of it (2026-08-15). The tooltip still says it in full.
-        self.check_button.setToolTip(
-            "Check for updates. Updating is free for everyone.")
-        self.check_button.clicked.connect(self._manual_update_check)
-        self.statusBar().addPermanentWidget(self.check_button)
-        self._check_cooldown = QTimer(self)
-        self._check_cooldown.setSingleShot(True)
-        self._check_cooldown.setInterval(UPDATE_CHECK_COOLDOWN_MS)
-        self._check_cooldown.timeout.connect(self._end_check_cooldown)
-
+        # ⚠ NO "UPDATES" BUTTON SINCE 1.19.0 — nothing to check. Releases are
+        # published on GitHub and unzipped over the folder by hand.
         self._console_dialog = None
         self.console_button = QPushButton("Console")
         self.console_button.setObjectName("flat")
@@ -4548,39 +4469,19 @@ class MainWindow(QMainWindow):
         elif bool(self.cfg.get("super_focus", False)):
             self.superfocus_box.setChecked(True)
 
-        # Licence chip. Hidden entirely when the build is not gated (running
-        # from source), where it would be pure noise.
-        self.license_chip = QPushButton("")
-        self.license_chip.setObjectName("flat")
-        self.license_chip.clicked.connect(lambda: self.license.recheck(quiet=False))
-        self.statusBar().addPermanentWidget(self.license_chip)
-        self.license.messageChanged.connect(self._on_license_message)
-        self.license.stateChanged.connect(lambda _s: self.update_license_chip())
-        self.update_license_chip()
-        # Evaluates what is already stored — no network, so the window is never
-        # held up by it. Any online check it decides to make runs off-thread.
-        self.license.start()
-
-        # Self-update. Hidden until there is something to say: a button that
-        # reads "no updates" is a button nobody needs.
-        self.update_button = QPushButton("")
-        self.update_button.setObjectName("flat")
-        self.update_button.clicked.connect(self.show_update_dialog)
-        self.update_button.hide()
-        self.statusBar().addPermanentWidget(self.update_button)
-        self.updater = updater_mod.UpdateManager(self.license, self.bridge, self)
-        # The update flow's two pieces of state (2026-08-08). `_manual_check`
-        # is what makes a check the user ASKED for report "you are up to date"
-        # while the automatic launch check stays silent unless there is news.
-        self._popover = None
-        self._manual_check_pending = False
-        self._offer_on_next_available = True
-        self.updater.progress.connect(self._on_update_progress)
-        self.updater.stateChanged.connect(self._on_update_state)
-        self.updater.messageChanged.connect(self._on_update_message)
-        # Cleans up the previous version's files, then (if switched on) looks
-        # for a new one AFTER the window is up and usable.
-        self.updater.start(auto=bool(self.cfg.get("auto_update", True)))
+        # ⚠ NO LICENCE CHIP AND NO UPDATE BUTTON SINCE 1.19.0. Both subsystems
+        # were removed outright (Marty, 2026-08-15: "FULLY remove the updating
+        # mechanics / mention of the server ... from now on people will have to
+        # update themselves from the github"). The app makes NO network calls of
+        # any kind now; new versions come from the GitHub releases page.
+        #
+        # What survived is `addon_push`, which is purely local — app to Blender,
+        # using the copy of the extension packed into this build. It never had
+        # anything to do with the server; it only lived in `updater\` because a
+        # release could also carry an add-on.
+        self.addon_pusher = addon_push.AddonPusher(self.bridge, self)
+        self.addon_pusher.messageChanged.connect(self._on_addon_message)
+        self.addon_pusher.stateChanged.connect(self._on_addon_state)
 
         # Developer edit: apply any saved renames LAST, once every widget above
         # exists. Gated tabs built later are covered by the filter's Show hook,
@@ -4588,243 +4489,47 @@ class MainWindow(QMainWindow):
         devedit.set_enabled(bool(self.cfg.get("dev_edit", False)))
         devedit.apply_all(self)
 
-    # -------------------------------------------------------------- updates
+    # ------------------------------------------------- the Blender add-on
+    # ⚠ WHAT WAS HERE UNTIL 1.19.0: the whole self-update flow (popover
+    # confirm, status-bar progress, restart-to-finish) and the licence chip.
+    # Both are gone — the app no longer talks to any server, and new versions
+    # come from the GitHub releases page. What remains is the one genuinely
+    # local operation: pushing the add-on this build carries into Blender.
 
-    def _on_update_message(self, text):
+    def _on_addon_message(self, text):
         if text:
             self.statusBar().showMessage(text, 8000)
 
-    # ------------------------------------------------- the update flow (B)
-    # Marty chose the non-blocking shape on 2026-08-08 out of three mockups:
-    # the confirm is a popover over the status-bar button, the progress lives
-    # in the status bar itself, and finishing is another popover. Nothing
-    # modal, because the app deliberately keeps working while a build
-    # downloads — a dialog would have contradicted the design it sits on.
-
-    def _update_popover(self):
-        """One popover, reused. A second one would let two contradictory
-        answers ('Install' and 'Not now') sit on screen at the same time."""
-        if getattr(self, "_popover", None) is None:
-            self._popover = widgets.Popover(self)
-        self._popover.clear_buttons()
-        return self._popover
-
-    def _popover_anchor(self):
-        """Whichever update control is actually visible right now."""
-        for button in (self.update_button, self.check_button):
-            if button is not None and button.isVisible():
-                return button
-        return self.statusBar()
-
-    def _on_update_progress(self, done, total):
-        if self.updater.state not in (updater_mod.DOWNLOADING,
-                                      updater_mod.INSTALLING):
+    def _on_addon_state(self, state):
+        if state == addon_push.INSTALLING:
+            self.statusBar().show_progress("Installing Blender add-on")
             return
-        if total > 0:
-            self.statusBar().show_progress(
-                "Updating  %.1f / %.1f MB" % (done / 1048576.0, total / 1048576.0),
-                done, total)
-        else:
-            self.statusBar().show_progress("Updating")
+        self.statusBar().clear_progress()
+        if state == addon_push.FAILED:
+            QMessageBox.warning(self, "Blender add-on",
+                                self.addon_pusher.message
+                                or "The add-on was not installed.")
 
-    def _offer_update_now(self):
-        """The confirm step. Raised by the check itself, not by a second click
-        — being told an update exists and then having to hunt for a small
-        button is the gap Marty asked to close."""
-        offer = self.updater.offer
-        if offer is None or self.updater.state != updater_mod.AVAILABLE:
-            return
-        if not offer.app_newer and self.updater.addon_available():
-            return self._offer_addon_update(offer)
-        root = updater_mod.swap.app_root()
-        # What must actually come down, not what the release contains: the
-        # manifest lists every file and normally exactly one of them differs.
-        changed = updater_mod.swap.plan(root, offer) if root else offer.files
-        size = sum(item["size"] for item in changed) / 1048576.0
-        extra = ""
-        if offer.addon:
-            extra = ("  It also carries Blender add-on %s, offered separately."
-                     % offer.addon["version"])
-        pop = self._update_popover()
-        pop.set_content(
-            "Version %s is available" % offer.version,
-            "You have %s.  %d file(s), %.1f MB.\nThe app keeps working while "
-            "it downloads; finishing needs a restart.%s"
-            % (version.APP_VERSION, len(changed), size, extra))
-        pop.add_button("Not now", lambda: None)
-        pop.add_button("Install", self.updater.install, primary=True)
-        pop.popup_above(self._popover_anchor())
-
-    def _confirm_update_done(self):
-        """The end of the flow: say it worked, then offer the restart."""
-        pop = self._update_popover()
-        offer = self.updater.offer
-        pop.set_content(
-            "Version %s installed" % (offer.version if offer else ""),
-            "Verified and swapped in. It takes effect when the app restarts.",
-            accent="#5aa469")
-        pop.add_button("Later", lambda: None)
-        pop.add_button("Restart now", self._restart_for_update, primary=True)
-        pop.popup_above(self._popover_anchor())
-
-    def _restart_for_update(self):
-        if self.updater.restart():
-            self.close()
-        else:
-            QMessageBox.warning(self, "Restart", "Could not relaunch the app "
-                                "— close it and open it again to finish.")
-
-    def _report_check_result(self, state):
-        """⚠ Only a check the USER asked for reports 'nothing to do'. The
-        automatic one runs on every launch, and a popover saying "you are up to
-        date" on every single start is how a feature becomes something people
-        want switched off."""
-        if not self._manual_check_pending:
-            return
-        if state == updater_mod.AVAILABLE:
-            self._manual_check_pending = False
-            return                      # _offer_update_now already spoke
-        if state in (updater_mod.CHECKING, updater_mod.DOWNLOADING,
-                     updater_mod.INSTALLING):
-            return
-        self._manual_check_pending = False
-        pop = self._update_popover()
-        if state == updater_mod.FAILED:
-            pop.set_content("Could not check for updates",
-                            self.updater.message or "Try again in a moment.",
-                            accent="#e06c60")
-        elif state == updater_mod.UNSUPPORTED:
-            pop.set_content("Updates are not available here",
-                            self.updater.message or "")
-        else:
-            pop.set_content("You are up to date",
-                            "Version %s is the newest build." % version.APP_VERSION,
-                            accent="#5aa469")
-        pop.add_button("OK", lambda: None)
-        pop.popup_above(self._popover_anchor())
-
-    def _on_update_state(self, state):
-        if state in (updater_mod.DOWNLOADING, updater_mod.INSTALLING):
-            if not self.statusBar().progress_visible():
-                self.statusBar().show_progress("Updating")
-        else:
-            self.statusBar().hide_progress()
-        if state == updater_mod.AVAILABLE and self._offer_on_next_available:
-            self._offer_on_next_available = False
-            QTimer.singleShot(0, self._offer_update_now)
-        elif state == updater_mod.READY:
-            QTimer.singleShot(0, self._confirm_update_done)
-        self._report_check_result(state)
-        if state == updater_mod.AVAILABLE:
-            offer = self.updater.offer
-            if offer is not None and not offer.app_newer and self.updater.addon_available():
-                # The app is current; only Blender's add-on is behind.
-                self.update_button.setText("⬆ Add-on %s" % offer.addon["version"])
-                self.update_button.setToolTip(
-                    "A newer Blender add-on is ready to install.")
-            else:
-                self.update_button.setText(
-                    "⬆ Update to %s" % (offer.version if offer else ""))
-                self.update_button.setToolTip("A newer version is ready to install.")
-            self.update_button.setStyleSheet("color: #5aa469;")
-            self.update_button.show()
-        elif state == updater_mod.READY:
-            self.update_button.setText("↻ Restart to finish")
-            self.update_button.setStyleSheet("color: #e0a33d;")
-            self.update_button.setToolTip(
-                "The update is installed. It takes effect when the app restarts.")
-            self.update_button.show()
-        elif state in (updater_mod.DOWNLOADING, updater_mod.INSTALLING):
-            self.update_button.setText("Updating...")
-            self.update_button.setStyleSheet("color: %s;" % theme.TEXT_DIM)
-            self.update_button.show()
-        else:
-            self.update_button.hide()
-
-    def show_update_dialog(self):
-        """The status-bar button. Re-opens whichever popover fits the state —
-        the confirm is still the one place an update is ever agreed to, and
-        nothing installs itself."""
-        state = self.updater.state
-        if state == updater_mod.READY:
-            return self._confirm_update_done()
-        if state == updater_mod.AVAILABLE:
-            return self._offer_update_now()
-
-    def _offer_addon_update(self, offer):
-        """The Blender half. Never silent: installing it reloads the extension,
-        which drops the bridge for a few seconds — not something to do to
-        someone mid-save."""
-        blocked = self.updater.addon_block_reason()
+    def install_addon_now(self):
+        """⚙ Settings ▸ Update add-on. Never silent: installing reloads the
+        extension, which drops the bridge for a few seconds — not something to
+        do to someone mid-save."""
+        blocked = self.addon_pusher.block_reason()
         if blocked:
             QMessageBox.information(self, "Blender add-on", blocked)
             return
+        import addon_bundle
+
         answer = QMessageBox.question(
-            self, "Blender add-on update",
-            "Blender add-on %s is available (you have %s).\n\n"
-            "Install it now? Blender reloads the add-on to finish, so the "
-            "connection drops for a few seconds.\n\n"
-            "Save your work in Blender first."
-            % (offer.addon["version"], self.bridge.addon_version or "an older version"),
+            self, "Blender add-on",
+            "Install Blender add-on %s? You have %s.\n\n"
+            "Blender reloads the add-on to finish, so the connection drops "
+            "for a few seconds.\n\nSave your work in Blender first."
+            % (addon_bundle.VERSION,
+               self.bridge.addon_version or "an older version"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if answer == QMessageBox.Yes:
-            self.updater.install_addon()
-
-    # ------------------------------------------------------------- licence
-
-    def _on_license_message(self, text):
-        if text:
-            self.statusBar().showMessage(text, 8000)
-
-    def update_license_chip(self):
-        """Licence state at a glance, next to the bridge dot and the pin."""
-        if not licensing.is_gated():
-            self.license_chip.hide()
-            return
-        state = self.license.state
-        # ⚠ STALE and GRACE_EXPIRED NO LONGER MEAN "everything still works".
-        # Since 2026-08-06 thirty days without a successful check locks the paid
-        # tabs, so the old reassuring wording here would have been a flat lie
-        # told by the one control someone checks when a tab stops opening.
-        text, colour, tip = {
-            licensing.ACTIVE: ("Licensed", "#5aa469", "Your licence is active."),
-            licensing.STALE: ("Licence: offline", "#e0a33d",
-                              "Your licence has not been confirmed for 30 days, so "
-                              "the paid tabs are locked. Connect to the internet and "
-                              "they unlock again straight away."),
-            licensing.GRACE_EXPIRED: ("Licence: offline", "#e06c60",
-                                      "Your licence has not been confirmed in over a "
-                                      "month, so the paid tabs are locked. Connect to "
-                                      "the internet to unlock them again."),
-            licensing.EXPIRED: ("Licence expired", "#e06c60",
-                                "Your licence has run out. A current Tier 3 pledge "
-                                "on Patreon renews it — sign in again to unlock the "
-                                "paid tabs for another year."),
-            licensing.LINKING: ("Linking...", "#e0a33d",
-                                "Finish signing in with Patreon in your browser."),
-            licensing.SEAT_CONFLICT: ("Licence in use", "#e06c60",
-                                      "Your licence is active on another computer."),
-            licensing.REVOKED: ("Licence withdrawn", "#e06c60",
-                                "This licence was withdrawn. Contact support."),
-            licensing.CLOCK_TAMPER: ("Checking...", "#e0a33d",
-                                     "The system clock moved backwards, so the licence "
-                                     "is being rechecked."),
-        }.get(state, ("Not licensed", theme.TEXT_DIM,
-                      "Studio Library is free. The other tabs need a licence."))
-        # Nearly out, but still working: say so on the chip itself rather than
-        # waiting for the day it stops. Renewing is one sign-in, and nobody
-        # should discover that on the morning it matters.
-        if state == licensing.ACTIVE and self.license.expiring_soon:
-            left = self.license.days_left
-            text = "Licence: %dd left" % left
-            colour = "#e0a33d"
-            tip = ("Your licence runs out in %d day%s. Sign in with Patreon again "
-                   "to renew it for another year." % (left, "" if left == 1 else "s"))
-        self.license_chip.show()
-        self.license_chip.setText(text)
-        self.license_chip.setStyleSheet("color: %s;" % colour)
-        self.license_chip.setToolTip(tip + "\nClick to check again now.")
-
+            self.addon_pusher.install_bundled_addon()
     # ---------------------------------------------------------- gated tabs
 
     # Everything past Studio Library. A GATED entry's blurb is what a locked
@@ -4848,9 +4553,7 @@ class MainWindow(QMainWindow):
     # Anim Layers and Node setup Tabs should be free and not pay gated" and
     # "Node setup tab should be after Anim Layers tab in order").
     #
-    # These are built UNCONDITIONALLY at startup, which is what makes them free
-    # — and it is also why none of their attributes may appear in GATED_ATTRS:
-    # a lock preview restoring them to None would blank a tab that is live.
+    # These are built UNCONDITIONALLY at startup, which is what makes them free.
     # Rendering was already free and moves into this list rather than keeping
     # its own hand-written addTab call, so the order is one readable thing.
     FREE_TOOLS = (
@@ -4883,33 +4586,15 @@ class MainWindow(QMainWindow):
 
     # ⚠ EMPTY SINCE 2026-08-14 — every tab is free (Marty: "make all tabs
     # free"). The paid thing is now premium pose/animation PACKS, and their
-    # gate lives on the SERVER, which refuses a premium pack download without
-    # a valid key — there is nothing tab-shaped left to lock (..\PACKS_PLAN.md).
-    # The machinery below (_add_gated_tabs, LockedPage, the preview restore)
-    # is KEPT, not deleted: gating a tab is a settled, tested dance. If one
-    # is ever gated again, the move is FOUR edits — an entry here as
-    # (key, title, blurb), its attributes into GATED_ATTRS, out of
-    # FREE_TOOLS, and a prefix gate in the add-on's server.py if it has a
-    # Blender half (docs\licensing.md has the checklist in both directions).
-    # ⚠ This tuple also ORDERS the gated block, which builds AFTER
-    # FREE_TOOLS — so re-gating a tab MOVES it unless it is placed where it
-    # already sat (MadiRef, 2026-08-11, went to the head for that reason).
-    GATED = ()
-
-    # Every attribute a GATED _build_* method assigns. The preview builds a
-    # real page and then throws it away, so these have to be put back exactly
-    # as they were or the app would believe the tab is unlocked.
-    # ⚠ EMPTY while GATED is empty (2026-08-14 — every tab freed). The rules
-    # that fill it stand: the moment a tab is gated again, its attribute
-    # names join here THE SAME DAY (or a lock preview leaves a live page in
-    # place and the app believes an unpaid tab is unlocked) — and ⚠ NOTHING
-    # BELONGING TO A FREE TAB may ever be listed, because free tabs are built
-    # for real at startup and a preview restoring their names to None would
-    # blank a working tab. That is why `rendering`/`render_queue` were never
-    # here even when four tabs were paid. The render queue keeps its own
-    # before/after guard in _build_preview regardless.
-    GATED_ATTRS = ()
-
+    # ⚠⚠ THE WHOLE TAB-GATING MACHINERY WAS DELETED IN 1.19.0, ALONG WITH
+    # `licensing\` ITSELF (Marty, 2026-08-15: "FULLY remove the updating
+    # mechanics / mention of the server"). `GATED`, `GATED_ATTRS`,
+    # `_add_gated_tabs`, `LockedPage` and `_build_preview` are gone. It had
+    # been dormant and empty since 2026-08-14, when every tab was freed.
+    #
+    # ⚠ If a tab ever needs gating again, this is a REBUILD, not four edits —
+    # the old machinery lives in the 2026-08-15_5 backup and in
+    # `docs\licensing.md`. Do not assume any of it is still here.
     # ⚠ PERF_PLAN option C, one tab per session (Marty, 2026-08-15: "C — lazy
     # tabs, one per session"): a key in here gets an empty host at startup and
     # its `_build_*` runs on FIRST OPEN. The builder's module imports move
@@ -4937,18 +4622,6 @@ class MainWindow(QMainWindow):
         host.layout().addWidget(page)
         widgets.attach_input_filters(host)
 
-    def _add_gated_tabs(self):
-        """Build the members-only tabs, or lock panels in their place."""
-        for key, title, blurb in self.GATED:
-            if self.license.unlocked:
-                widget = getattr(self, "_build_" + key)()
-            else:
-                widget = licensing.LockedPage(
-                    self.license, title, blurb,
-                    preview_factory=lambda k=key: self._build_preview(k))
-                self._locked_pages[key] = widget
-            self.main_tabs.addTab(widget, title)
-        self._apply_tab_colors()
 
     def _refilter_page(self, index):
         """Re-attach the input filters to the section being opened.
@@ -4979,11 +4652,13 @@ class MainWindow(QMainWindow):
             strip.set_section(self.section_rail.label_for(index))
 
     def _apply_tab_colors(self):
-        """Per-tab text colours and the premium tooltip. Re-run after anything
-        that rebuilds tabs — an unlock replaces the widget, and the colour and
-        the tooltip go with it."""
+        """Per-tab text colours. Re-run after anything that rebuilds tabs.
+
+        ⚠ There is no premium set any more (1.19.0): every tab is free and the
+        gating machinery is gone. `premium` stays as an empty local so the loop
+        below reads the same as the rail's own painter."""
         bar = self.main_tabs.tabBar()
-        premium = {title for _key, title, _blurb in self.GATED}
+        premium = set()
         # ⚠ The rail is built LATE in __init__ — after the first call to this
         # method — and the tab bar it mirrors is hidden, so the colours have to
         # reach both. `getattr` rather than an attribute: during that first
@@ -5006,83 +4681,10 @@ class MainWindow(QMainWindow):
             if title in premium:
                 bar.setTabToolTip(i, "★  Premium — included with supporting")
 
-    def _build_preview(self, key):
-        """A picture of the real tab, for showing behind the lock.
-
-        The page is built for real - so the preview is always what the current
-        code actually looks like, and can never go stale the way a shipped
-        screenshot would - then grabbed and destroyed on the spot.
-
-        Two things make that safe. The bridge is swapped for a dead stub, so
-        nothing can reach Blender even for an instant; and the widgets are gone
-        before the event loop runs again, so the timers their constructors
-        start (Anim Layers polls every 1.5 s) never get to fire. What remains
-        behind the lock is pixels - there is no hidden live UI to uncover.
-        """
-        saved = {name: getattr(self, name) for name in self.GATED_ATTRS}
-        # ⚠ Guarded on its own rather than through GATED_ATTRS, because the
-        # Rendering tab is free now and its queue is a LIVE object we must never
-        # shut down or blank. Compare before against after: a preview that built
-        # a second queue gets it stopped, and one that did not is left alone.
-        queue_before = self.render_queue
-        real_bridge = self.bridge
-        self.bridge = _DeadBridge()
-        self._previewing = True
-        page = None
-        try:
-            page = getattr(self, "_build_" + key)()
-            # Roughly the size the tab occupies, so the proportions look right
-            # whatever the window is doing.
-            page.resize(1120, 640)
-            return page.grab()
-        except Exception:
-            traceback.print_exc()
-            return None
-        finally:
-            self._previewing = False
-            self.bridge = real_bridge
-            queue = self.render_queue
-            if page is not None:
-                if queue is not None and queue is not queue_before:
-                    try:
-                        queue.shutdown()   # never leave a stray queue running
-                    except Exception:
-                        pass
-                page.setParent(None)
-                page.deleteLater()
-            self.render_queue = queue_before
-            for name, value in saved.items():
-                setattr(self, name, value)
-
-    def _on_license_state(self, _state):
-        if self.license.unlocked and self._locked_pages:
-            self._unlock_tabs()
-
-    def _unlock_tabs(self):
-        """Swap each lock panel for the real tab, in place. No restart: someone
-        who has just paid should not be told to close the app."""
-        current = self.main_tabs.currentIndex()
-        for key, title, _blurb in self.GATED:
-            page = self._locked_pages.pop(key, None)
-            if page is None:
-                continue
-            index = self.main_tabs.indexOf(page)
-            widget = getattr(self, "_build_" + key)()
-            if index < 0:
-                self.main_tabs.addTab(widget, title)
-            else:
-                self.main_tabs.removeTab(index)
-                self.main_tabs.insertTab(index, widget, title)
-            page.deleteLater()
-        self.main_tabs.setCurrentIndex(current)
-        self._apply_tab_colors()
-        # The gated tabs were just built for the first time - any renames saved
-        # for them have never been applied to these widgets.
-        devedit.apply_all(self)
-        self.update_license_chip()
-        self.statusBar().showMessage(
-            "Everything is unlocked - thank you for supporting.", 8000)
-
+    # ⚠ `_build_preview`, `_on_license_state` and `_unlock_tabs` were removed
+    # in 1.19.0 with the rest of the gating machinery. `_build_preview` built a
+    # real page, photographed it and threw it away so a lock panel could show a
+    # blurred picture of what was behind it; nothing needs that now.
     def _build_rendering(self):
         page = renderingmod.RenderingPage(self.bridge, self)
         # Render Queue first (Marty, 2026-08-04) — it is the tool that gets
@@ -5180,8 +4782,8 @@ class MainWindow(QMainWindow):
         """MadiRef — video reference in this window and in the viewport, in
         sync (2026-08-11, `docs\\madiref.md`).
 
-        MEMBERS ONLY since 2026-08-11, so this runs from `_add_gated_tabs`
-        and a LockedPage stands in its place until the licence unlocks.
+        Free like every other tab; it was members-only for three days in
+        August 2026 and the machinery that made it so no longer exists.
 
         ⚠ Constructing it reaches Blender not at all and the disk only to
         total up the clip cache for its label. **No shared-memory segment is
@@ -5217,9 +4819,9 @@ class MainWindow(QMainWindow):
         # two UIs cannot drift. See docs\bone-picker.md.
         page = pickermod.PickerPage(self.bridge, self)
         # Presets and Appearance are folded INTO Tabs & Rig (Marty, 2026-08-04).
-        # All four tools are still built and still assigned to the window -
-        # GATED_ATTRS names them, and PickerTabsTool's poll still fans out to
-        # the other three - only the rail is shorter.
+        # All four tools are still built and still assigned to the window, and
+        # PickerTabsTool's poll still fans out to the other three - only the
+        # rail is shorter.
         self.picker_tabs_tool = pickermod.PickerTabsTool(self.bridge, self)
         self.picker_presets_tool = pickermod.PickerPresetsTool(self.bridge, self)
         self.picker_options_tool = pickermod.PickerOptionsTool(self.bridge, self)
@@ -5531,24 +5133,8 @@ class MainWindow(QMainWindow):
         for i in range(self.tabs.count()):
             self.tabs.widget(i).on_video_preview_ready(path)
 
-    def _manual_update_check(self):
-        """Ask the server, then go quiet for the cooldown.
-
-        ⚠ A check you asked for ALWAYS answers — including "you are up to
-        date". Before this it only left a status message, so clicking the
-        button and seeing nothing happen was the normal outcome.
-        """
-        self.check_button.setEnabled(False)
-        self.check_button.setText("Checking…")
-        self._check_cooldown.start()
-        self._manual_check_pending = True
-        self._offer_on_next_available = True
-        self.updater.check(manual=True)
-
-    def _end_check_cooldown(self):
-        self.check_button.setEnabled(True)
-        self.check_button.setText("Updates")
-
+    # ⚠ `_manual_update_check` / `_end_check_cooldown` were removed in 1.19.0
+    # along with the updater they drove.
     def show_about(self, parent=None):
         """About, with the Discord and Patreon links.
 
@@ -5651,7 +5237,6 @@ class MainWindow(QMainWindow):
         # Layers settings wins again when it comes back — the user may have
         # changed them here in the meantime, and a reconnect must not undo that.
         self._prefs_synced = False
-        self._license_pushed = False
         # Forget which file we were in: the next connect may well be a DIFFERENT
         # Blender that grabbed the freed port, and announcing that as a move is
         # right — but only once we have actually seen it.
@@ -5687,28 +5272,6 @@ class MainWindow(QMainWindow):
             # missing needs no action, so offering one would be noise.
             self.addon_update_button.setVisible(bool(missing))
             blend = self._note_connected_file(st)
-            # ⚠⚠ THE LICENCE PUSH HAPPENS HERE, ABOVE THE VERSION NOTE, AND
-            # THAT POSITION IS THE WHOLE POINT (2026-08-12, Marty: "most
-            # things I try to use says 'The scene optimizer is locked'").
-            # It used to sit AFTER the `return` in the `if note:` branch
-            # below, so ANY version difference between the app and the
-            # installed add-on silently switched off EVERY paid Blender
-            # feature — Optimization, Physics, NSFW Tools, MadiRef — with the
-            # licensed app sitting right there connected and the status bar
-            # saying so in grey. It did not even need the gap to cost a
-            # feature: a note is written for a purely cosmetic difference too,
-            # and that branch returned all the same.
-            #
-            # This is the recurrence `docs\licensing.md` recorded on the
-            # morning of the same day as "unconfirmed, most likely no live
-            # bridge" and said would be a real bug in the push if it ever
-            # happened while connected. It did. This is it.
-            #
-            # `_push_license` does its own capability check, so pushing before
-            # the note is decided costs nothing on an add-on too old to route
-            # `license_unlock`.
-            if st.get("licensed") is False:
-                self._push_license()
             if note:
                 mark = "⚠ " if missing else ""
                 self.bridge_label.setText("●  %s: %s — %s%s"
@@ -5854,33 +5417,10 @@ class MainWindow(QMainWindow):
         config.save(self.cfg)
         self._push_layer_prefs(settings)
 
-    # ------------------------------------------------ unlocking the add-on
-
-    def _push_license(self):
-        """Hand Blender the signed licence blob, so its paid panels work.
-
-        Called whenever the add-on's own status says it is NOT unlocked — its
-        gate is session-scoped and a Blender restart, an add-on reload or a
-        bridge stop/start all wipe it. Asking the add-on beats tracking it here:
-        a reload is faster than the poll, so "have I already sent it?" answers
-        yes long after the answer stopped being true.
-
-        Silent: Blender being closed is routine, and an app that is not licensed
-        has nothing to send. Never sends a partial or hand-made blob — the
-        add-on verifies the signature over the exact bytes the server signed.
-        """
-        try:
-            if self.bridge.feature_reason("license_unlock"):
-                return
-            record = getattr(self.license, "_record", None) or {}
-            payload, sig = record.get("payload"), record.get("sig")
-            if not payload or not sig:
-                return          # never signed in — nothing to prove
-            self.bridge.license_unlock(payload, sig)
-        except Exception:       # noqa: BLE001 - a dropped bridge is routine
-            return
-        self._license_pushed = True
-
+    # ⚠ `_push_license` WAS HERE UNTIL 1.19.0. The add-on had a session-scoped
+    # entitlement gate that the app re-armed over the bridge on every reconnect.
+    # Both halves of that are gone: the extension has no gate to arm and this
+    # app has no licence to send.
     # ------------------------------------- Anim Layers settings <-> Blender
 
     def _push_layer_prefs(self, settings):
@@ -6108,10 +5648,10 @@ def main():
     if devedit.available():
         devedit.install(app)
 
-    # ⚠ NOT IN SMOKE MODE. `updater\swap.smoke()` runs `--smoke` to decide
-    # whether to KEEP an update, and it may well run while the app that
-    # launched the update is still open. A smoke run that refused to start
-    # because "another copy is running" would make every update roll itself
+    # ⚠ NOT IN SMOKE MODE. `--smoke` starts the app, reports what it built and
+    # exits; it is how a build is verified, and it may well run while a real
+    # copy is open. A smoke run that refused to start because "another copy is
+    # running" would make every build check fail for a reason that is not
     # back — the same class of disaster as the 0xC0000409 crash, arrived at
     # from the opposite direction. Smoke shows no window and touches no
     # settings, so there is nothing for it to collide with anyway.
@@ -6144,11 +5684,11 @@ def main():
                   len(view.items), len(view.folders), view.grid.count(),
                   "yes" if blendsize.zstd_available() else "NO"))
         # ⚠ MUST come before the return, or the process ABORTS (0xC0000409).
-        # The licence check now runs on every launch, so by this line there is
-        # a live QThread mid-request, and returning here destroys it - which Qt
-        # treats as fatal. This is not a test-only concern: `swap.smoke()` runs
-        # exactly this to decide whether to keep an update, so a build that
-        # crashes here would make every update roll itself back.
+        # Any worker still mid-request when this returns is destroyed by Qt,
+        # which treats that as fatal. The licence check that used to guarantee
+        # one is gone, but the health poll and the add-on push both still run
+        # off-thread — and `--smoke` is how a build is verified, so a crash
+        # here would fail every build check.
         win.shutdown_workers()
         return 0
     # Held on the window so the server outlives this function — a garbage

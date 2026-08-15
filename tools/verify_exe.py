@@ -57,7 +57,6 @@ MARKERS = [
     # alongside it only because it is a real since_version in
     # FEATURE_REQUIREMENTS, not because it is the expected version.
     ("bridge", "0.22.0", True),
-    ("updater.offer", "safe_relpath", True),
     # --- three tabs freed (2026-08-06) -----------------------------------
     # ⚠ The gated set went from SIX to THREE. A stale build would still be
     # showing lock panels on Bone picker / Anim Layers / Node Setup, which is
@@ -91,20 +90,14 @@ MARKERS = [
     # SERVER_URL is the empty string. It starts perfectly, every tab works
     # (they are all free), and the ONLY symptom is that signing in can never
     # succeed. Nothing else in this file would catch it.
-    ("licensing.endpoint", "https://", True),
-    ("licensing.manager", "_DEFAULT_SERVER", True),
 
     # Expiry: the field, the state and the wording that must NOT be the
     # revoked wording.
-    ("licensing.manager", "entitled_until", True),
-    ("licensing.manager", "Your licence has run out", True),
-    ("main", "Licence expired", True),
 
     # ⚠ THE ONE-ENV-VAR BYPASS BEING SHUT. The variable NAME is still read, so
     # its presence proves nothing about the ordering - this matches a phrase
     # from the fixed `is_gated()` docstring instead, which only the new source
     # has. (Docstrings survive: build_exe.ps1 does not pass -OO.)
-    ("licensing.manager", "A FROZEN BUILD IGNORES THE OVERRIDE ENTIRELY", True),
 
     # ⚠ THE CRASH FIX. Without it this exe ABORTS on `--smoke` (0xC0000409),
     # because the every-launch licence check is still mid-request when the run
@@ -113,10 +106,27 @@ MARKERS = [
     # an update, so a build missing this would roll back every update forever.
     ("main", "shutdown_workers", True),
 
-    # REMOVALS this build must carry: the updater's licence gate is gone, and a
-    # stale build would still be refusing to install for unlicensed users.
-    ("updater.manager", "_waiting_licence", False),
-    ("updater.manager", "anonymous", False),
+    # ⚠⚠ THE 1.19.0 REMOVALS. The self-updater and the WHOLE licensing
+    # subsystem were deleted. A stale build carries both and looks completely
+    # normal — it would still phone a server on launch, still show a licence
+    # chip and an Updates button, and still try to install a release over
+    # itself. These absence markers are the only thing that catches that.
+    ("main", "update_license_chip", False),
+    ("main", "_manual_update_check", False),
+    ("main", "_push_license", False),
+    ("main", "Check for updates automatically", False),
+    ("bridge", "license_unlock", False),
+    ("config", "auto_update", False),
+    # …and the one local operation that SURVIVED the removal. If this is
+    # missing, "Update add-on" is gone and there is no way to get the Blender
+    # half out of the app at all.
+    ("addon_push", "AddonPusher", True),
+    ("addon_push", "install_bundled_addon", True),
+    ("main", "addon_pusher", True),
+    # ⚠ The two-Blender verdict, which is the hardest-won message in the
+    # module and the easiest thing to lose while moving code between files.
+    ("addon_push", "addon_other_blender", True),
+    ("addon_push", "the bridge in the Blender you want updated", True),
 
     # --- the Bone picker tab (2026-08-04) --------------------------------
     ("picker", "PickerTabsTool", True),
@@ -167,7 +177,6 @@ MARKERS = [
     ("main", "zip_items", True),
     ("main", "save_shapes_separately", True),
     ("main", "show_library_settings", True),
-    ("main", "_manual_update_check", True),
     ("updates", "UpdatesPage", True),
     ("updates", "CHANGELOG.md", True),
     ("library", ".vgroups", True),
@@ -306,7 +315,7 @@ MARKERS = [
     # the UTF-8 BOM on its manifest, which Blender REFUSES while
     # `package_install_files` still returns {'FINISHED'} — a build carrying
     # that hash ships an add-on nobody can install and nothing reports it.
-    ("addon_bundle", "0c2312e30fa9c50a", True),
+    ("addon_bundle", "b5915f2a7ecb1a47", True),
     ("addon_bundle", "15758d6b33ae5f84", False),
     # --- 2026-08-07, all of Blender's bake options + a sample count -------
     ("bridge", "0.25.0", True),
@@ -326,7 +335,6 @@ MARKERS = [
     ("nsfw", "Add Stretching torus", True),
     ("theme", "#9c4071", True),
     ("devedit", "RichTextDialog", True),
-    ("bridge", "license_unlock", True),
     ("anim_layers", "DragSlider", True),
     # --- 2026-08-08, the node batch: free tab, Map set, search, All slots -
     # ⚠ The exe Marty runs was FIVE batches behind when he reported three of
@@ -410,9 +418,6 @@ MARKERS = [
     # downloading.
     ("widgets", "Popover", True),
     ("widgets", "show_progress", True),
-    ("main", "_on_update_progress", True),
-    ("main", "_offer_update_now", True),
-    ("main", "_manual_check_pending", True),
     # --- 1.6.0: four colour themes -----------------------------------------
     # ⚠ `refresh_theme` is the one that would be missed and would look like a
     # half-broken app rather than a missing feature: without it the shell
@@ -428,10 +433,6 @@ MARKERS = [
     # ⚠ The free-tab COUNT is derived from FREE_TOOLS at runtime, so it cannot
     # be checked as a literal here — `free_tabs_line` being present is the
     # thing that matters; `lic_client_test.py` proves what it renders.
-    ("licensing.lock", "Tier 3 supporters on Patreon", True),
-    ("licensing.lock", "free_tabs_line", True),
-    ("licensing.manager", "The paid tabs come with Tier 3", True),
-    ("licensing.manager", "A current Tier 3 pledge on Patreon", True),
     # ⚠ NO ABSENCE MARKER FOR "unlocks permanently". The phrase still appears
     # in the COMMENT explaining why it was removed, and comments are not in
     # bytecode — so the check would pass for a reason unrelated to what it
@@ -447,7 +448,7 @@ MARKERS = [
     # ⚠ A VERSION-STRING MARKER DIES WHEN THE VERSION MOVES — fourth time.
     # This is EXPECTED_ADDON_VERSION; validate it against source before every
     # build rather than discovering it after a four-minute one.
-    ("bridge", "0.46.0", True),
+    ("bridge", "0.47.0", True),
     # --- THE RESKIN + the update-install fix (1.17.0) ----------------------
     # ⚠ The lesson Quadify taught, applied on the way in this time: a new
     # module with NO markers can be missing from a build and only fail when
@@ -457,7 +458,6 @@ MARKERS = [
     # literal CONSTANTS, validated against source before the build.
     ("icons", "DRAWN, NOT SHIPPED AS FILES", True),
     ("widgets", "THE TAB BAR IS STILL THERE, JUST HIDDEN", True),
-    ("updater.swap", "A STAGED BLOB CAN SERVE MORE THAN ONE DESTINATION", True),
     ("main", "Studio Library", True),
     # --- the window's own title bar (1.18.0) -------------------------------
     # ⚠ Same lesson again, applied on the way in: `chrome.py` is a new module,
@@ -477,10 +477,7 @@ MARKERS = [
     ("optimizer", "quad_progress", True),
     # The four locks that make a refused add-on package impossible to ship
     # silently. A stale build without them is the failure this all came from.
-    ("updater.offer", "inspect_addon_package", True),
-    ("updater.offer", "blender_manifest.toml", True),
     ("bridge", "addon_update_result", True),
-    ("updater.manager", "addon_refused", True),
     # ⚠ Absence twins, each earned when EXPECTED moved past it — every one of
     # these was only ever that constant in THIS module. "0.41.0" is still a
     # live string in `markers.py` (the layer gate's message), and markers are

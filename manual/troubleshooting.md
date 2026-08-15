@@ -34,10 +34,11 @@ the running extension. Two things cause this:
 - **The bridge moved during the install.** The reload frees the port; another
   waiting Blender can take it. Restart the bridge in the instance you want.
 
-**Blender panels are locked but the app looks fine**
+**A Blender panel says something is locked**
 
-The app's state and the add-on's are separate. Reconnecting, or restarting the
-bridge so it re-reads its token, resolves it.
+It cannot, any more — there are no locks. If you see wording like that, you are
+running an add-on older than 0.47.0 alongside a newer app. Press
+**⚙ Settings ▸ Update add-on**.
 
 ---
 

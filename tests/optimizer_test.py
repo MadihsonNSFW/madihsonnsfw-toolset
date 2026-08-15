@@ -45,7 +45,29 @@ sys.modules["madi_pkg"] = pkg
 spec.loader.exec_module(pkg)
 opt = sys.modules["madi_pkg.optimizer"]
 core = sys.modules["madi_pkg.core"]
-ent = sys.modules["madi_pkg.entitlement"]
+class _NoEntitlement:
+    """⚠ THERE IS NO ENTITLEMENT MODULE ANY MORE (add-on 0.47.0).
+
+    This suite's whole point in the gating era was to drive the gate LOCKED and
+    prove the tool still worked. The gate is gone, so `unlocked()` is
+    permanently true and `_STATE.update` is a no-op that keeps the surrounding
+    checks readable rather than deleting the scenarios they cover.
+    """
+
+    _STATE = {}
+
+    @staticmethod
+    def unlocked():
+        return True
+
+    @staticmethod
+    def lock(*_a, **_k):
+        return {"unlocked": True}
+
+
+ent = _NoEntitlement()
+ent._STATE = type("_S", (), {"update": staticmethod(lambda **_k: None)})()
+
 server = sys.modules["madi_pkg.server"]
 
 TMP = tempfile.mkdtemp(prefix="madi_opt_test_")

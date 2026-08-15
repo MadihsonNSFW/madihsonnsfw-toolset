@@ -200,7 +200,7 @@ ok("act_curving" in src and "pick_curving(target, window)" in src,
 # preview is built — and into FREE_TOOLS so it is constructed at startup.
 import main as mainmod  # noqa: E402
 
-gated = {key: title for key, title, _b in mainmod.MainWindow.GATED}
+gated = {}   # 1.19.0: GATED is gone
 free = {key: title for key, title in mainmod.MainWindow.FREE_TOOLS}
 ok("nodeeditor" not in gated,
    "main: the Node Editor is NOT gated any more (got %r)" % (sorted(gated),))
@@ -213,20 +213,22 @@ ok(free.get("nodeeditor") == "Node Editor",
 _free_keys = [k for k, _t in mainmod.MainWindow.FREE_TOOLS]
 ok(_free_keys.index("nodeeditor") == _free_keys.index("node_setup") + 1,
    "main: it sits directly beside Node Setup in the free block")
-ok("nodeeditor" not in mainmod.MainWindow.GATED_ATTRS,
-   "main: and OUT of GATED_ATTRS — a lock preview must never blank a live tab")
+ok(not hasattr(mainmod.MainWindow, "GATED_ATTRS"),
+   "main: GATED_ATTRS is gone entirely (1.19.0)")
 # ⚠ This list has been rewritten in BOTH directions — tabs freed out of it
 # (2026-08-06, 2026-08-08), MadiRef gated back in (2026-08-11), and then
 # EVERYTHING freed on 2026-08-14 (the pivot: premium packs are the paid
 # thing). Still pinned whole: a tab quietly re-entering it would re-lock a
 # tool under Marty's hand.
-ok([k for k, _t, _b in mainmod.MainWindow.GATED] == [],
-   "main: GATED is empty — every tab is free since 2026-08-14")
+ok(not hasattr(mainmod.MainWindow, "GATED"),
+   "main: GATED itself is gone — the gating machinery was deleted in 1.19.0")
 ok(callable(getattr(mainmod.MainWindow, "_build_nodeeditor", None)),
    "main: _build_nodeeditor exists")
-ok(all(not any(w in blurb.lower() for w in _FORBIDDEN)
-       for _k, _t, blurb in mainmod.MainWindow.GATED),
-   "branding: no gated blurb mentions what must never ship")
+# ⚠ The gated blurbs were the one place a withheld attribution could reach a
+# user's screen as marketing copy. There are no blurbs now, which is a stronger
+# guarantee than checking them - so this pins their ABSENCE instead.
+ok(not hasattr(mainmod.MainWindow, "GATED"),
+   "branding: there are no gated blurbs left to leak anything (1.19.0)")
 
 # ------------------------------------------------- 8. grid re-level + ctrl zoom
 from PySide6.QtCore import QEvent, QRectF, Qt  # noqa: E402

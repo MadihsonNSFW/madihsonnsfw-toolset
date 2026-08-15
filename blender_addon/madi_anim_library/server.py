@@ -345,19 +345,12 @@ class BridgeServer:
             sel_bones = 0
             if ob is not None and ob.type == 'ARMATURE':
                 sel_bones = sum(1 for pb in ob.pose.bones if core.bone_is_selected(pb))
-            from . import entitlement
             return {
                 # Reported so the app can spot an add-on older than itself.
                 "version": core.ADDON_VERSION,
                 # …and what this build can actually DO, so the app adapts to a
                 # version gap instead of breaking on it.
                 "capabilities": self.capabilities(),
-                # ⚠ The unlock state rides on the POLL, so the app can re-send a
-                # licence whenever this says it is missing. An app that only
-                # pushed on a noticed disconnect never re-sent after an add-on
-                # RELOAD - the reload is faster than the poll, so the app never
-                # saw the bridge go down while the unlock was wiped with it.
-                "licensed": entitlement.unlocked(),
                 "file": bpy.data.filepath,
                 "active_object": ob.name if ob else None,
                 "is_armature": bool(ob is not None and ob.type == 'ARMATURE'),
@@ -687,18 +680,12 @@ class BridgeServer:
         if cmd == "madiref_status":
             from . import madiref
             return madiref.madiref_status()
-        # --- entitlement: the app hands over its server-signed licence blob and
-        # this verifies it. Session-scoped; see entitlement.py for what the gate
-        # does and does not buy.
-        if cmd == "license_unlock":
-            from . import entitlement
-            return entitlement.unlock(p.get("payload"), p.get("sig"))
-        if cmd == "license_state":
-            from . import entitlement
-            return entitlement.state()
-        if cmd == "license_lock":
-            from . import entitlement
-            return entitlement.lock("locked by the app")
+        # ⚠ THE THREE `license_*` COMMANDS WERE REMOVED IN ADD-ON 0.47.0,
+        # with `entitlement.py` and the whole app-side licensing package. There
+        # is no entitlement to unlock, no signed blob to verify and no
+        # `licensed` field on the status poll any more. An older app calling
+        # them gets the ordinary "unknown command" answer, which is what its own
+        # capability check is there to prevent.
         # --- Bone picker. The layout itself lives on the armature and the tabs
         # on the Scene, so these read and write the SAME data the Image Editor
         # panel does - there is no second copy to keep in step. See picker.py.

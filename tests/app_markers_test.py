@@ -722,8 +722,11 @@ ok(markersmod.read_marker_file(out) is not None,
 
 main_src = open(os.path.join(_ROOT, "app", "main.py"),
                 encoding="utf-8").read()
-ok('"markers_tool"' not in main_src.split("GATED_ATTRS")[-1][:2000],
-   "licence: the markers tool is not in GATED_ATTRS - the tab is free")
+import main as _mainmod  # noqa: E402
+ok(not hasattr(_mainmod.MainWindow, "GATED_ATTRS")
+   and not hasattr(_mainmod.MainWindow, "GATED"),
+   "licence: the gating machinery is gone entirely since 1.19.0 - every tool "
+   "is free and there is nothing left to lock")
 bridge_src = open(os.path.join(_ROOT, "app", "bridge.py"),
                   encoding="utf-8").read()
 ok('"markers": (' in bridge_src and '"marker_list", "0.40.0"' in bridge_src,

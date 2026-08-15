@@ -203,6 +203,27 @@ _doc_sources = [("HANDOFF.md", HANDOFF, ROOT),
 _doc_sources += [("docs\\" + n, os.path.join(DOCS, n), ROOT)
                  for n in docs if n not in ("history.md", "PITFALLS.md")]
 
+# ⚠ PATHS A DOC IS ALLOWED TO NAME BECAUSE THEY ARE GONE. A tombstone has to
+# say what it is a tombstone FOR, so "every named path exists" and "record what
+# was deleted" are in direct conflict — and the wrong way to settle it is to
+# stop naming the thing, which is how a removal becomes untraceable a year
+# later. Everything here was deleted deliberately, on a dated instruction, and
+# the doc naming it says so.
+#
+# ⚠ Add to this list ONLY when the file is genuinely deleted. A typo'd path is
+# the failure this check exists to catch, and an entry here silences it
+# forever.
+REMOVED = {
+    # 1.19.0 (2026-08-15): the self-updater and the whole licensing subsystem.
+    "app\\updater", "app\\updater\\offer.py", "app\\updater\\swap.py",
+    "app\\updater\\manager.py",
+    "app\\licensing", "app\\licensing\\manager.py", "app\\licensing\\lock.py",
+    "app\\licensing\\endpoint.py", "app\\licensing\\store.py",
+    "tests\\app_updater_test.py", "tests\\lic_client_test.py",
+    "blender_addon\\madi_anim_library\\entitlement.py",
+    "blender_addon\\madi_anim_library\\ed25519.py",
+}
+
 _path_bad = []
 _ctrl_bad = []
 for _label, _path, _hint in _doc_sources:
@@ -217,6 +238,8 @@ for _label, _path, _hint in _doc_sources:
     for _ref in set(PATHY.findall(_text)):
         _clean = _ref.strip().rstrip("\\")
         if any(c in _clean for c in "<>*?{}…"):
+            continue
+        if _clean in REMOVED:
             continue
         _m = ATTR.match(_clean)
         if _m and not _clean.lower().endswith(CHECKED_EXT):
@@ -265,8 +288,10 @@ ok(not _rowless,
 # forty files.
 _map_at = handoff.find("## FILE → DOC map")
 _map_text = handoff[_map_at:handoff.find("\n## ", _map_at + 10)]
-for _folder in ("app\\updater\\", "app\\licensing\\", "app\\madiref\\",
-                "app\\render_deck\\"):
+# ⚠ `app\updater\` and `app\licensing\` were dropped from this list in 1.19.0
+# because the folders themselves were deleted. If either name comes back, so
+# does its row.
+for _folder in ("app\\madiref\\", "app\\render_deck\\"):
     ok(_folder in _map_text,
        "the FILE -> DOC map carries the folder row `%s`" % _folder)
 

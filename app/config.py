@@ -59,12 +59,9 @@ DEFAULTS = {
     # being the one that decides.
     "abc_export": {},
     # Look for a newer version shortly after launch (⚙ Library Settings). ON by
-    # default: for a paid app that ships fixes, a customer sitting on an old
-    # build because nobody told them is the worse failure. It only ever CHECKS
-    # on its own — installing always asks first, because finishing an update
-    # means restarting, and that is not a thing to do to someone mid-pose.
-    # Applies to the installed app only; running from source never updates.
-    "auto_update": True,
+    # ⚠ `auto_update` WAS REMOVED IN 1.19.0 along with the updater itself. An
+    # existing config.json may still carry the key; nothing reads it, and
+    # `save` no longer writes it, so it ages out on the next save.
     # Anim Layers tab preferences (see anim_layers.LayerOptionsTool)
     "anim_layers": {
         "sync_names": True,        # layer name <-> its action's name

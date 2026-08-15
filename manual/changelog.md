@@ -28,10 +28,8 @@ in that release needs the Blender half as well. **⚙ Settings ▸ Update add-on
 
 ## Updating
 
-The app updates itself — check from the status bar.
+**The app does not update itself.** Download a new release from GitHub and unzip
+it over your folder — see [Install ▸ Updating](install.md#updating).
 
-A release downloads only the files that changed, verifies every byte against a
-signature, proves the new build actually starts, and puts the old one back if it
-does not.
-
-Updating is free for everyone, and so is every tab.
+After updating the app, press **⚙ Settings ▸ Update add-on** so the Blender half
+matches.

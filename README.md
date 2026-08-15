@@ -5,8 +5,8 @@ queue that works with Blender closed, a 2D bone picker, animation layers, video
 reference in the viewport, scene optimisation, texture baking and rig tools — in
 one window that talks to Blender over a local connection.
 
-![app](https://img.shields.io/badge/app-1.18.1-2E6F6A)
-![add-on](https://img.shields.io/badge/add--on-0.46.0-B4651A)
+![app](https://img.shields.io/badge/app-1.19.0-2E6F6A)
+![add-on](https://img.shields.io/badge/add--on-0.47.0-B4651A)
 ![blender](https://img.shields.io/badge/blender-5.x-E87D0D)
 ![python](https://img.shields.io/badge/python-3.10-3776AB)
 ![licence](https://img.shields.io/badge/licence-GPL--3.0-B4487A)
@@ -48,9 +48,15 @@ scroll while a 461-bone rig evaluates next door.
 
 ## Quick start
 
-1. Download a build, unzip it anywhere, run `MadihsonNSFW Toolset.exe`.
-2. **⚙ Settings ▸ Update add-on** — installs the Blender half for you.
+1. Download a build from [Releases](https://github.com/MadihsonNSFW/madihsonnsfw-toolset/releases),
+   unzip it anywhere, run `MadihsonNSFW Toolset.exe`.
+2. **⚙ Settings ▸ Update add-on** — installs the Blender half for you, from the
+   copy packed inside the app.
 3. In Blender: **N** ▸ **MADI** ▸ **Start bridge**.
+
+**No accounts, no sign-in, no telemetry.** The app makes no network connections
+at all — it talks to Blender on a local port and nothing else. To update it,
+download a newer release and unzip it over your folder.
 
 Full instructions: **[Install](https://madihsonnsfw.github.io/madihsonnsfw-toolset/install/)**.
 
@@ -75,7 +81,7 @@ See **[Building from source](https://madihsonnsfw.github.io/madihsonnsfw-toolset
 powershell -ExecutionPolicy Bypass -File tests\run_all.ps1
 ```
 
-82 suites, roughly 4,850 checks. Set `$env:MADI_BLENDER` if your Blender is not
+81 suites, roughly 4,475 checks. Set `$env:MADI_BLENDER` if your Blender is not
 where the runner expects. See
 **[Running the tests](https://madihsonnsfw.github.io/madihsonnsfw-toolset/testing/)**.
 

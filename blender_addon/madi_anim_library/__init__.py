@@ -17,7 +17,7 @@ from bpy.types import AddonPreferences, Operator, Panel
 from bpy.props import (BoolProperty, EnumProperty, FloatProperty, IntProperty,
                        StringProperty)
 
-from . import (anim_layers_ui, core, entitlement, jiggle, markers, optimizer,
+from . import (anim_layers_ui, core, jiggle, markers, optimizer,
                picker, server)
 
 # ⚠ NO PATH IS BAKED IN. `DEFAULT_APP` used to be an absolute path on the

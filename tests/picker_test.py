@@ -44,7 +44,29 @@ sys.modules["madi_pkg"] = pkg
 spec.loader.exec_module(pkg)
 picker = sys.modules["madi_pkg.picker"]
 core = sys.modules["madi_pkg.core"]
-ent = sys.modules["madi_pkg.entitlement"]
+class _NoEntitlement:
+    """⚠ THERE IS NO ENTITLEMENT MODULE ANY MORE (add-on 0.47.0).
+
+    This suite's whole point in the gating era was to drive the gate LOCKED and
+    prove the tool still worked. The gate is gone, so `unlocked()` is
+    permanently true and `_STATE.update` is a no-op that keeps the surrounding
+    checks readable rather than deleting the scenarios they cover.
+    """
+
+    _STATE = {}
+
+    @staticmethod
+    def unlocked():
+        return True
+
+    @staticmethod
+    def lock(*_a, **_k):
+        return {"unlocked": True}
+
+
+ent = _NoEntitlement()
+ent._STATE = type("_S", (), {"update": staticmethod(lambda **_k: None)})()
+
 server = sys.modules["madi_pkg.server"]
 
 # ------------------------------------------------------------------ versions
@@ -433,9 +455,11 @@ ok(not hasattr(picker, "LOCKED_HINT"),
    "free: no locked message survives either - a free tool must not keep the "
    "words that would tell someone to go and pay")
 
-# The real proof: with entitlement LOCKED, the picker still works end to end.
-ent._STATE.update(unlocked=False, sub=None, not_after=0, reason="locked")
-ok(ent.unlocked() is False, "free: (entitlement really is locked for this test)")
+# ⚠ The real proof USED to be "drive the gate locked and watch it still work".
+# There is no gate to drive since 1.19.0, so the proof is stronger and simpler:
+# the module is not in the package at all, and the picker below works anyway.
+ok("madi_pkg.entitlement" not in sys.modules,
+   "free: the add-on imports no entitlement module at all")
 
 
 class _Report:

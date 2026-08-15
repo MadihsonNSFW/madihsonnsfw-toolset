@@ -425,7 +425,7 @@ ok(not wide,
 # renames and these suites' exact title lists - so "Physics *" would quietly
 # stop matching "Physics" in all of them. These checks pin both halves: the
 # titles stay clean, and the star really lands on the gated tabs only.
-gated_titles = {t for _k, t, _b in mainmod.MainWindow.GATED}
+gated_titles = set()   # 1.19.0: GATED is gone, nothing is gated
 free_titles = {t for _k, t in mainmod.MainWindow.FREE_TOOLS}
 ok(len(gated_titles) == 0 and len(free_titles) == 9,
    "premium: NO tab is members-only since 2026-08-14 - every tool is free "
@@ -689,54 +689,15 @@ ok(win._connected_file is None,
 ok("two Blenders" in win.bridge_label.toolTip(),
    "and the offline tooltip points at the two-instance case")
 
-# ------ ⚠ A VERSION NOTE MUST NOT SWALLOW THE LICENCE PUSH (2026-08-12)
-# Marty: "in Optimization tab most things i try to use says 'The scene
-# optimizer is locked'". Measured live: add-on 0.38.0 installed, app expecting
-# 0.39.0, licence stored and valid, and `license_state` stuck at
-# {"unlocked": false, "reason": "not asked"} - because `_on_status_ok`
-# RETURNED inside the `if note:` branch, which sat ABOVE the push. Any version
-# difference at all - even one costing no features - silently switched off
-# every paid Blender feature while the status bar said "connected".
-#
-# This is the recurrence docs\licensing.md recorded that morning as
-# "unconfirmed, most likely no live bridge" and said would be a real bug if it
-# ever happened while connected.
-_pushes = []
-_real_push = win._push_license
-win._push_license = lambda: _pushes.append(True)
-try:
-    # A version gap big enough to produce BOTH a note and missing features.
-    gapped = dict(CONNECTED, version="0.1.0", licensed=False,
-                  capabilities=["license_unlock"])
-    win._connected_file = None
-    win._on_status_ok(gapped)
-    ok(bool(win.bridge_label.full_text()),
-       "an old add-on still reports its version note")
-    ok(len(_pushes) == 1,
-       "⚠ the licence is STILL pushed when the add-on version differs - the "
-       "note must not return before it (pushes: %d)" % len(_pushes))
-
-    # ...and on the ordinary path, where there is no note at all.
-    del _pushes[:]
-    win._connected_file = None
-    win._on_status_ok(dict(CONNECTED, licensed=False))
-    ok(len(_pushes) == 1,
-       "and on a matching add-on too (pushes: %d)" % len(_pushes))
-
-    # An add-on that says it IS unlocked is not pushed to again.
-    del _pushes[:]
-    win._on_status_ok(dict(CONNECTED, licensed=True))
-    ok(not _pushes, "an already-unlocked add-on is left alone")
-finally:
-    win._push_license = _real_push
-
-# ------------------------------------------------------------------ About
-# Marty asked for "an About section with my Link to my discord and Patreon —
+# ⚠ THE LICENCE-PUSH CHECKS WERE DELETED IN 1.19.0. The add-on's entitlement
+# gate and the app's `_push_license` are both gone, so there is nothing to push
+# and nothing a version note could swallow. The bug they guarded (a version
+# difference silently switching off every paid Blender feature) cannot recur
+# because there are no paid features left to switch off.
 # Discord to report bugs and Patreon for support". The two links do two jobs and
 # the wording has to keep them apart.
 
 import version as versionmod  # noqa: E402
-import licensing as licensingmod  # noqa: E402
 from main import AboutDialog  # noqa: E402
 
 
@@ -749,7 +710,7 @@ def _about_buttons(dlg):
     return [b.text() for b in dlg.findChildren(QPushButton)]
 
 
-dlg = AboutDialog(win, win.license, "0.20.0")
+dlg = AboutDialog(win, None, "0.20.0")
 text = _about_text(dlg)
 buttons = _about_buttons(dlg)
 
@@ -777,39 +738,10 @@ ok(" ai " not in blob and "ai-written" not in blob,
    "about: and nothing about how it was written")
 dlg.deleteLater()
 
-# The licence line: what it says, and the one case where it says nothing.
-mgrmod = licensingmod.manager
-
-
-class _FakeLic:
-    def __init__(self, state, days=None):
-        self.state = state
-        self.days_left = days
-        self.expiring_soon = days is not None and 0 <= days <= mgrmod.EXPIRY_WARNING_DAYS
-
-    def expiry_message(self):
-        return mgrmod.LicenseManager.expiry_message(self)
-
-
-ok(AboutDialog._licence_line(None) is None, "about: no manager -> no licence line")
-ok(AboutDialog._licence_line(_FakeLic(licensingmod.UNLICENSED)) is None,
-   "about: someone who never had a licence is told NOTHING - the free tabs are "
-   "a whole product and a help dialog is not the place for a sales pitch")
-line = AboutDialog._licence_line(_FakeLic(licensingmod.ACTIVE, None))
-ok(line and "not expire" in line, "about: a permanent licence says it never expires")
-line = AboutDialog._licence_line(_FakeLic(licensingmod.ACTIVE, 200))
-ok(line and "200 days left" in line, "about: a live licence counts the days down")
-line = AboutDialog._licence_line(_FakeLic(licensingmod.ACTIVE, 3))
-ok(line and "renew" in line.lower(),
-   "about: and one about to run out says how to renew, while it still works")
-line = AboutDialog._licence_line(_FakeLic(licensingmod.ACTIVE, 1))
-ok(line and "1 day." in line and "1 days" not in line,
-   "about: 'in 1 day', not 'in 1 days' (%r)" % line)
-line = AboutDialog._licence_line(_FakeLic(licensingmod.EXPIRED, -5))
-ok(line and "patreon" in line.lower() and "contact support" not in line.lower(),
-   "about: an expired licence points at Patreon, not at support")
-
-
+# ⚠ THE LICENCE LINE IS GONE (1.19.0). The About box no longer discusses
+# entitlement because there is none — every tool is free and the app contacts
+# nothing. What it still has to get right is checked above: the versions, the
+# author, the two links, and the attribution rule.
 # ===================================== 5. one instance of the app, not two ==
 # Two copies would fight over the same config.json, the same render queue and
 # the same bridge — and only one Blender can hold the bridge, so the second
@@ -1016,99 +948,59 @@ finally:
         sys.frozen = frozen_before
     devedit.set_enabled(False)
 
-# ========== 10. the update flow lives in the status bar (option B) ==========
-# Marty picked B from three mockups (2026-08-08): "confirm, progress bar, then
-# confirmation" — and none of it modal, because the app deliberately keeps
-# working while a build downloads.
-import updater as updater_mod  # noqa: E402
+# ⚠ SECTION 10 (the status-bar update flow) WAS DELETED IN 1.19.0 with the
+# updater itself. The add-on push that survived it has its own suite,
+# `app_addon_push_test.py`.
 
-OFFER = updater_mod.Offer("9.9.9", "0.0.0", 0,
-                          [{"path": "MadihsonNSFW Toolset.exe",
-                            "sha256": "a" * 64, "size": 2806018}],
-                          None, app_newer=True)
+# ========== 10. THE APP MAKES NO NETWORK CALLS. AT ALL. ====================
+# ⚠⚠ THE HEADLINE PROMISE OF 1.19.0, AND THE EASIEST ONE TO LOSE BY ACCIDENT.
+# Marty: "FULLY remove the ... mention of the server". A single `urllib` import
+# added later — a version check, a crash report, a "what's new" fetch — would
+# quietly undo it, and nothing else in this fleet would notice, because a
+# network call that works looks exactly like no network call at all.
+#
+# Scanned as SOURCE rather than by importing: an import-time check would only
+# see modules that happen to be loaded, and the whole point is to catch a
+# module nobody thought about.
+import glob as _glob  # noqa: E402
+import re as _re  # noqa: E402
 
+_NET = _re.compile(r"^\s*(?:import|from)\s+"
+                   r"(urllib|http|requests|ftplib|smtplib|telnetlib|"
+                   r"xmlrpc|aiohttp|httpx|websocket)\b", _re.M)
+_offenders = []
+for _py in sorted(_glob.glob(os.path.join(_ROOT, "app", "**", "*.py"),
+                             recursive=True)):
+    if ".venv" in _py or "__pycache__" in _py or os.sep + "dist" + os.sep in _py:
+        continue
+    with open(_py, encoding="utf-8") as _fh:
+        _hit = _NET.search(_fh.read())
+    if _hit:
+        _offenders.append("%s -> %s" % (os.path.basename(_py),
+                                        _hit.group(1)))
+ok(not _offenders,
+   "⚠⚠ network: NO module under app\\ imports a network library (%r)"
+   % _offenders)
 
-def _drive(state, offer=OFFER, manual=False, auto_offer=True):
-    """Put the manager in a state and let the window react, exactly as the
-    stateChanged signal would."""
-    win.updater._offer = offer
-    win.updater._state = state
-    win._manual_check_pending = manual
-    win._offer_on_next_available = auto_offer
-    win._on_update_state(state)
-    app.processEvents()
-    return getattr(win, "_popover", None)
+# The one socket that is allowed, and the reason it is allowed: it is the
+# Blender bridge, on loopback, to a port on this machine.
+with open(os.path.join(_ROOT, "app", "bridge.py"), encoding="utf-8") as _fh:
+    _bridge_src = _fh.read()
+ok("socket.create_connection" in _bridge_src,
+   "network: the ONE socket in the app is the Blender bridge's, in bridge.py")
+_socket_users = []
+for _py in sorted(_glob.glob(os.path.join(_ROOT, "app", "**", "*.py"),
+                             recursive=True)):
+    if ".venv" in _py or "__pycache__" in _py or os.sep + "dist" + os.sep in _py:
+        continue
+    if os.path.basename(_py) in ("bridge.py", "main.py"):
+        continue          # main.py's single-instance lock is a local mutex
+    with open(_py, encoding="utf-8") as _fh:
+        if _re.search(r"^\s*import socket\b", _fh.read(), _re.M):
+            _socket_users.append(os.path.basename(_py))
+ok(not _socket_users,
+   "network: and nothing else opens one (%r)" % _socket_users)
 
-
-bar = win.statusBar()
-
-# --- the progress strip, which is the part that did not exist at all -------
-# ⚠ UpdateManager.progress has been emitting bytes since the updater was
-# written and NOTHING was connected to it. That is the whole gap here.
-_drive(updater_mod.DOWNLOADING)
-ok(bar.progress_visible(),
-   "update: the progress strip appears in the status bar while downloading")
-win._on_update_progress(1900000, 2806018)
-ok("1.8" in bar.progress_label.text() and "2.7" in bar.progress_label.text(),
-   "update: it reports real megabytes, not a spinner (%r)"
-   % bar.progress_label.text())
-ok(bar.progress_bar.maximum() == 2806018 and bar.progress_bar.value() == 1900000,
-   "update: and the bar itself is on the same numbers")
-
-# ⚠ total=0 is a REAL state, not a placeholder: verify/swap/smoke has no byte
-# count, and a bar frozen at 100% for those seconds reads as a hang.
-win._on_update_progress(0, 0)
-ok(bar.progress_bar.maximum() == 0,
-   "update: an unmeasurable phase goes indeterminate rather than sitting at 100%")
-
-pop = _drive(updater_mod.READY)
-ok(not bar.progress_visible(),
-   "update: the strip goes away once the install finishes")
-
-# --- the three moments ----------------------------------------------------
-ok(pop is not None and "installed" in pop.title.text(),
-   "update: finishing says so (%r)" % (pop.title.text() if pop else None))
-labels = [b.text() for b in pop.findChildren(QPushButton)]
-ok("Restart now" in labels and "Later" in labels,
-   "update: ...and offers the restart without forcing it (%s)" % labels)
-pop.close()
-
-pop = _drive(updater_mod.AVAILABLE)
-ok(pop is not None and "9.9.9" in pop.title.text(),
-   "update: an available update raises the confirm ITSELF — no hunting for a "
-   "small button (%r)" % (pop.title.text() if pop else None))
-labels = [b.text() for b in pop.findChildren(QPushButton)]
-ok("Install" in labels and "Not now" in labels,
-   "update: confirm before anything downloads (%s)" % labels)
-ok("2.7 MB" in pop.body.text() and versionmod.APP_VERSION in pop.body.text(),
-   "update: the confirm says what it costs and what you have (%r)"
-   % pop.body.text())
-pop.close()
-
-# --- ⚠ the automatic check must not nag ------------------------------------
-before = win._popover
-pop = _drive(updater_mod.IDLE, offer=None, manual=False)
-ok(pop is before or pop is None or not pop.isVisible(),
-   "⚠ update: the AUTOMATIC launch check says NOTHING when there is no update "
-   "— a popover on every start is how a feature gets switched off")
-
-pop = _drive(updater_mod.IDLE, offer=None, manual=True)
-ok(pop is not None and "up to date" in pop.title.text().lower(),
-   "update: but a check YOU asked for always answers (%r)"
-   % (pop.title.text() if pop else None))
-pop.close()
-
-pop = _drive(updater_mod.FAILED, offer=None, manual=True)
-ok(pop is not None and "not check" in pop.title.text().lower(),
-   "update: including when it could not reach the server (%r)"
-   % (pop.title.text() if pop else None))
-pop.close()
-
-ok(win._popover is not None and len(win.findChildren(widgets.Popover)) == 1,
-   "update: ONE popover, reused — two would let 'Install' and 'Not now' sit "
-   "on screen at the same time")
-
-print("")
 print("%d passed, %d failed" % (len(PASS), len(FAIL)))
 for f in FAIL:
     print("FAIL " + f)

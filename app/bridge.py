@@ -102,7 +102,7 @@ UNREACHABLE_BACKOFF = 30.0
 # update_bridge_status warns when they differ, which catches the "rebuilt the
 # exe but forgot to reinstall the extension" case (and the reverse). Bump it
 # together with blender_manifest.toml whenever new commands land.
-EXPECTED_ADDON_VERSION = "0.46.0"
+EXPECTED_ADDON_VERSION = "0.47.0"
 
 # ---------------------------------------------------------------------------
 # Update safety: a version gap must DEGRADE, never break.
@@ -156,11 +156,6 @@ FEATURE_REQUIREMENTS = {
         "anim_layers_set_prefs", "0.9.0",
         "Sharing the Anim Layers settings with Blender's N-panel needs add-on "
         "0.9.0 or newer. Until then the app keeps its own copy."),
-    # Unlocking the add-on's own paid panels. An older add-on has no paid panels
-    # to unlock, so there is nothing to report and nothing breaks.
-    "license_unlock": (
-        "license_unlock", "0.9.0",
-        "Unlocking the Blender panels needs add-on 0.9.0 or newer."),
     # The Bone picker tab. On an older add-on there is no picker in Blender at
     # all, so this ONE tab reports why and does nothing — every other tab is
     # untouched. That is the whole compatibility contract in one line.
@@ -1026,19 +1021,8 @@ class Bridge:
                              "data_type": data_type, "object": object_name},
                             timeout=60.0)
 
-    # ------------------------------------------------------- entitlement ---
-    def license_unlock(self, payload, sig):
-        """Hand Blender the server-signed licence blob so its paid panels work.
-
-        The EXACT bytes we stored, never a re-serialised copy — the add-on
-        verifies the signature over them, and re-encoding the JSON would change
-        the bytes and fail the check.
-        """
-        return self.request("license_unlock", {"payload": payload, "sig": sig},
-                            timeout=15.0)
-
-    def license_lock(self):
-        return self.request("license_lock", timeout=10.0)
+    # ⚠ `license_unlock` / `license_lock` were removed in 1.19.0 with the whole
+    # licensing subsystem. The add-on has no entitlement gate to arm.
 
     def anim_layers_set_prefs(self, prefs):
         """Hand Blender the Anim Layers settings the two UIs share.

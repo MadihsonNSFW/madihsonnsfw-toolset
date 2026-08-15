@@ -203,7 +203,7 @@ ok("app" in why.lower() or "here" in why.lower(),
 main_src = open(os.path.join(ROOT, "app", "main.py"), encoding="utf-8").read()
 import main as mainmod  # noqa: E402
 
-_gated = {key: title for key, title, _b in mainmod.MainWindow.GATED}
+_gated = {}   # 1.19.0: GATED is gone — nothing is gated at all
 _free = dict(mainmod.MainWindow.FREE_TOOLS)
 ok("madiref" not in _gated,
    "gate: MadiRef is NOT gated any more — every tab went free 2026-08-14, "
@@ -215,8 +215,9 @@ ok(_free.get("madiref") == "MadiRef",
 _free_keys = [k for k, _t in mainmod.MainWindow.FREE_TOOLS]
 ok(_free_keys.index("madiref") == _free_keys.index("nodeeditor") + 1,
    "gate: it still sits directly after Node Editor — the strip did not move")
-ok("madiref" not in mainmod.MainWindow.GATED_ATTRS,
-   "gate: and OUT of GATED_ATTRS — a lock preview must never blank a live tab")
+ok(not hasattr(mainmod.MainWindow, "GATED_ATTRS"),
+   "gate: GATED_ATTRS is gone entirely - the lock-preview machinery was "
+   "removed in 1.19.0, so nothing can blank a live tab")
 # ⚠ AND THE BLENDER HALF'S GATE IS GONE WITH IT (the app's lock was never the
 # bridge's — a gate here had to be REMOVED here). The madiref_* prefix check
 # left server.py on 2026-08-14 along with opt_* and quad_*: the bridge

@@ -103,16 +103,18 @@ ok(bpy.types.MADILIB_PT_anim_layers_options.bl_parent_id
 props = bpy.context.window_manager.madilib_al
 ok(props is not None, "register: the panel's property group is on the WM")
 
-# ---------------------------------------------------------- the licence gate
-ent = sys.modules["madi_pkg.entitlement"]
+# ------------------------------------------------- no gate, and no gate module
+# ⚠ THE ENTITLEMENT MODULE IS GONE ENTIRELY (add-on 0.47.0). Anim Layers was
+# freed on 2026-08-06; the machinery that used to gate it was deleted with the
+# rest of the licensing subsystem in 1.19.0. So the proof is no longer "locked
+# and it still works" — it is that there is nothing left to lock with.
+ok("madi_pkg.entitlement" not in sys.modules,
+   "gate: the add-on imports no entitlement module at all")
+ok(not os.path.exists(os.path.join(ADDON, "entitlement.py")),
+   "gate: and entitlement.py is not in the package")
+ok(not os.path.exists(os.path.join(ADDON, "ed25519.py")),
+   "gate: nor the signature verifier it was the only user of")
 
-ok(ent.unlocked() is False, "gate: locked until something unlocks it")
-
-# ⚠ ANIM LAYERS ITSELF IS FREE as of 2026-08-06 (Marty). The two assertions that
-# used to live here — operators refusing while locked, coming alive when
-# unlocked — are gone with the gate. `entitlement.py` is still exercised in full
-# below, because the Scene Optimizer still uses it; what changed is WHO it
-# gates, not whether it works.
 ok(not hasattr(alui.MADILIB_OT_al_add, "poll"),
    "free: Anim Layers operators carry no poll gate any more")
 ok(not hasattr(alui, "LOCKED_HINT"),
@@ -128,79 +130,29 @@ _alstub = type("_S", (), {
 })()
 alui.MADILIB_OT_al_add.execute(_alstub, bpy.context)
 ok(bool(_reached),
-   "free: execute() REACHES run() with entitlement locked - the real proof, "
-   "since the gate used to refuse in execute() as well as poll()")
-
-ok(ent.unlock("not json", "x")["reason"] == "malformed",
-   "gate: rubbish is refused")
-ok(ent.unlock('{"active": true, "not_after": 99999999999}', "")["unlocked"] is False,
-   "gate: an UNSIGNED blob is refused - this is the whole point")
-import base64 as _b64
-ok(ent.unlock('{"active": true, "not_after": 99999999999}',
-              _b64.b64encode(b"\x00" * 64).decode())["reason"] == "bad signature",
-   "gate: and a forged signature is refused")
-
-# The shipped code only VERIFIES - there is no signer here to make a genuine
-# blob with, and vendoring one into a test would be a second implementation of
-# the thing under test. The refusals above are the real checks; for the accept
-# path, verify() is stood in for so the rest of unlock()'s rules can be exercised
-# (active / revoked / not_after) without depending on a private key.
-_ed = sys.modules["madi_pkg.ed25519"]
-_real_verify = _ed.verify
-_ed.verify = lambda k, m, s: True
-try:
-    now = int(__import__("time").time())
-    good = '{"active": true, "revoked": false, "sub": "ent_x", "not_after": %d}' % (now + 600)
-    res = ent.unlock(good, _b64.b64encode(b"\x00" * 64).decode())
-    ok(res["unlocked"] is True and res["sub"] == "ent_x",
-       "gate: a VERIFIED, active, unexpired blob unlocks")
-    ok(ent.unlocked() is True,
-       "gate: and the module reports itself unlocked (what the Scene Optimizer "
-       "still reads - Anim Layers no longer asks)")
-
-    expired = '{"active": true, "not_after": %d}' % (now - 10)
-    ok(ent.unlock(expired, _b64.b64encode(b"\x00" * 64).decode())["reason"] == "expired",
-       "gate: an expired blob is refused - not_after is the server's, never guessed")
-    ent.unlock(good, _b64.b64encode(b"\x00" * 64).decode())
-
-    revoked = '{"active": true, "revoked": true, "not_after": %d}' % (now + 600)
-    ok(ent.unlock(revoked, _b64.b64encode(b"\x00" * 64).decode())["reason"] == "revoked",
-       "gate: a revoked one too")
-    ent.unlock(good, _b64.b64encode(b"\x00" * 64).decode())
-
-    inactive = '{"active": false, "reason": "seat_in_use", "not_after": %d}' % (now + 600)
-    ok(ent.unlock(inactive, _b64.b64encode(b"\x00" * 64).decode())["reason"] == "seat_in_use",
-       "gate: and a signed REFUSAL reports the server's own reason")
-
-    # Expiry is re-checked on read, so a session left open cannot outlive it.
-    ent.unlock(good, _b64.b64encode(b"\x00" * 64).decode())
-    ent._STATE["not_after"] = now - 1
-    ok(ent.unlocked() is False,
-       "gate: expiry is checked on READ too, not only at unlock time")
-
-    ent.unlock(good, _b64.b64encode(b"\x00" * 64).decode())
-    ok(ent.lock()["unlocked"] is False, "gate: and the app can lock it again")
-    ent.unlock(good, _b64.b64encode(b"\x00" * 64).decode())
-finally:
-    _ed.verify = _real_verify
-
-ok(ent.PUBLIC_KEY == "MbYPKzKddZcjdchpdZXPddVCSkJi2LLVbPyBdh65n3s=",
-   "gate: the add-on verifies against the SAME key the app does")
-
-# ⚠ The unlock state must ride on the POLL. An app that pushed only on a noticed
-# disconnect never re-sent after an add-on RELOAD - the reload is faster than the
-# poll, so the app never saw the bridge drop and the panel stayed locked with the
-# app sitting there connected. Found live, 2026-08-04.
+   "free: execute() REACHES run() - the real proof, since the gate used to "
+   "refuse in execute() as well as poll()")
+# ⚠⚠ EVERYTHING FROM HERE TO THE OPERATOR CHECK USED TO EXERCISE THE SIGNED
+# LICENCE BLOB — malformed payloads, bad signatures, expiry, revocation, seat
+# conflicts, the shared public key, and the "unlock state rides on the poll"
+# rule that a whole evening was spent learning. All of it is gone with the
+# subsystem in 1.19.0, and none of it can regress because none of it exists.
+#
+# What replaces it is the only thing still worth asserting: nothing anywhere
+# claims to be licensed, and no route offers to unlock anything.
 server_poll = open(os.path.join(ADDON, "server.py"), encoding="utf-8").read()
-ok('"licensed": entitlement.unlocked()' in server_poll,
-   "gate: status reports whether it is unlocked, every poll")
-ok('if st.get("licensed") is False:' in app_main,
-   "gate: and the app re-sends on what the ADD-ON reports, not on its own flag")
-app_lic = open(os.path.join(ROOT, "app", "licensing", "manager.py"),
-               encoding="utf-8").read()
-ok('PUBLIC_KEY = "%s"' % ent.PUBLIC_KEY in app_lic,
-   "gate: and that key really is the app's, not a copy that drifted")
-
+ok('"licensed"' not in server_poll,
+   "gate: the status poll no longer reports a licensed flag")
+ok("license_unlock" not in server_poll and "license_state" not in server_poll
+   and "license_lock" not in server_poll,
+   "gate: and the dispatcher routes no license_* command")
+# ⚠ Comments are stripped LINE BY LINE, not by deleting "# " everywhere: the
+# word survives in five explanatory comments recording that the gate is gone,
+# and a crude strip counted those as live code.
+_live = "".join(l for l in server_poll.splitlines(True)
+                if not l.strip().startswith("#"))
+ok("entitlement" not in _live,
+   "gate: server.py does not reach for an entitlement module in live code")
 # Every operator the panel and the menu reference must actually exist - a typo
 # in a bl_idname is invisible until someone clicks it.
 referenced = set()
@@ -359,17 +311,9 @@ ok(sig_before == sig_after, "draw: and changed nothing about the layers")
 ok(len(bpy.data.actions) == actions_before,
    "draw: and created no actions - draw() is a pure read")
 
-# Locked, the panel must still draw - a paid tool that throws instead of saying
-# "locked" looks like a bug, and the message is the only route back.
-ent.lock()
-try:
-    _draw(bpy.types.MADILIB_PT_anim_layers)
-    ok(True, "draw: the LOCKED panel draws its explanation instead of the stack")
-except Exception as exc:                       # noqa: BLE001
-    ok(False, "draw: the LOCKED panel draws (%r)" % exc)
-_ed.verify = lambda k, m, s: True
-ent.unlock(good, _b64.b64encode(b"\x00" * 64).decode())
-_ed.verify = _real_verify
+# ⚠ There is no locked state to draw any more (1.19.0): the panel has exactly
+# one appearance, and the "locked, so draw the explanation instead" branch went
+# with the gate along with everything that could produce it.
 
 try:
     _draw(bpy.types.MADILIB_PT_anim_layers_options)

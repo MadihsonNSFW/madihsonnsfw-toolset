@@ -60,7 +60,7 @@ ok(updmod.read_notes(blank) == updmod.EMPTY,
 # ------------------------------------------------------------- not gated
 import main as mainmod  # noqa: E402
 
-gated = {t for _k, t, _b in mainmod.MainWindow.GATED}
+gated = set()   # 1.19.0: nothing is gated
 ok("What's New" not in gated,
    "notes: the tab is NOT members-only - what a paid build contains is exactly "
    "what someone deciding whether to pay should be able to read")
