@@ -11,9 +11,10 @@ one window that talks to Blender over a local connection.
 ![python](https://img.shields.io/badge/python-3.10-3776AB)
 ![licence](https://img.shields.io/badge/licence-GPL--3.0-B4487A)
 
-### 📖 **[Read the manual →](https://madihsonnsfw.github.io/madihsonnsfw-toolset/)**
+### ⬇ **[Download for Windows →](https://github.com/MadihsonNSFW/madihsonnsfw-toolset/releases/latest)**  ·  📖 **[Read the manual →](https://madihsonnsfw.github.io/madihsonnsfw-toolset/)**
 
-**Every tool is free.**
+**Every tool is free.** No accounts, no sign-in, no telemetry — the app makes no
+network connections at all.
 
 ---
 

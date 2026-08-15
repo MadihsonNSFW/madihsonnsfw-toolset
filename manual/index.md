@@ -5,7 +5,11 @@ that works with Blender closed, a 2D bone picker, animation layers, video
 reference in the viewport, scene optimisation, texture baking and rig tools —
 in one window that talks to Blender over a local connection.
 
-Every tool is free. The source is here under GPL-3.0.
+Every tool is free, the source is here under GPL-3.0, and the app makes **no
+network connections at all** — no accounts, no sign-in, no telemetry.
+
+[⬇ Download for Windows](https://github.com/MadihsonNSFW/madihsonnsfw-toolset/releases/latest){ .md-button .md-button--primary }
+[Install guide](install.md){ .md-button }
 
 ---
 
