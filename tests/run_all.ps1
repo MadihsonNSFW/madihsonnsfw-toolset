@@ -61,13 +61,13 @@ $blenderSuites = @(
     "al_panel_test.py",
     # Bone picker: registration as a package submodule (incl. the prefs lookup
     # that fails SILENTLY if it regresses), handler hygiene across a reload,
-    # the licence gate on operators AND on the bridge, the picker_* API, and
+    # the ABSENCE of any licence gate (removed 2026-08-15), the picker_* API, and
     # the .picker library item round-trip.
     "picker_test.py",
     # Scene Optimizer: real files through real OpenImageIO - the stand-in
     # cache, sequences and UDIM tiles, never-upscale and never-copy-a-copy,
     # revert, tamper detection, the camera projection maths, the decimate
-    # stale sweep, the linked-library veto, and the licence gate on the bridge.
+    # stale sweep, the linked-library veto, and the gate's ABSENCE on the bridge.
     "optimizer_test.py",
     # Vertex groups: store, exact restore (and its refusal on a vertex-count
     # mismatch), and the spatial transfer onto a different mesh.

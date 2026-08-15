@@ -1001,6 +1001,97 @@ for _py in sorted(_glob.glob(os.path.join(_ROOT, "app", "**", "*.py"),
 ok(not _socket_users,
    "network: and nothing else opens one (%r)" % _socket_users)
 
+# ========== 11. EVERY TAB BUILT, AND THE TEARDOWN ==========================
+# ⚠⚠ RESCUED FROM `lic_client_test.py`, WHICH WAS DELETED WITH LICENSING ON
+# 2026-08-15. That suite's NAME said licences; roughly eighty of its lines were
+# a whole-shell integration check that had nothing to do with them, and three
+# separate docs credited it with catching bugs no other suite could see. Losing
+# it silently is exactly the kind of hole a rename or a delete leaves behind —
+# **check what a suite actually asserts before deleting it, not what it is
+# called.**
+#
+# ⚠ `_pages()` IS THE ONE THAT MATTERS. A tool page missed from that list was
+# shipped TWICE (the Optimization tab, then MadiRef) and this count is the only
+# thing that has ever caught it.
+# ⚠ A FRESH WINDOW. The `win` above has had tabs opened by ten earlier
+# sections, so its lazy-tab state is no longer pristine — asserting "not
+# built at startup" on it failed for a reason that had nothing to do with
+# the code. The suite this came from built its own window for that reason.
+#
+# ⚠⚠ AND IT HAS TO START ON TAB 0. An earlier section toggles the always-on-top
+# pin, which PERSISTS the config — including `main_tab`, the tab `win` happened
+# to be on. A fresh window then restores that tab and builds it, which is
+# CORRECT behaviour (a lazy tab you land on must exist) and would make this
+# check fail for a reason that is not a bug. Pin the starting tab so the
+# assertion is about laziness and nothing else.
+_cfg_now = _json.loads(_io.open(config.CONFIG_PATH, encoding="utf-8").read())
+_cfg_now["main_tab"] = 0
+_io.open(config.CONFIG_PATH, "w", encoding="utf-8").write(_json.dumps(_cfg_now))
+_w = mainmod.MainWindow()
+ok(_w.main_tabs.currentIndex() == 0,
+   "tabs: the fresh window starts on Studio Library, so the lazy check below "
+   "is about laziness and not about a restored tab")
+_tab_titles = [_w.main_tabs.tabText(i) for i in range(_w.main_tabs.count())]
+ok(_tab_titles == ["Studio Library", "Rendering", "Bone picker", "Anim Layers",
+                   "Node Setup", "Node Editor", "MadiRef", "Optimization",
+                   "NSFW Tools", "Physics", "What's New"],
+   "tabs: the strip is in Marty's order (%r)" % (_tab_titles,))
+ok(_w.rendering is not None and _w.render_queue is not None
+   and _w.picker is not None
+   and _w.node_setup is not None and _w.nodeeditor is not None,
+   "tabs: the eagerly-built tools are constructed at startup")
+ok(_w.madiref is not None and _w.optimizer is not None
+   and _w.nsfw is not None and _w.physics is not None,
+   "tabs: so are the four that used to be paid")
+ok(_w.bone_jiggle_tool is not None
+   and _w.affector_torus_tool is not None
+   and _w.optimizer_adaptive_tool is not None,
+   "tabs: and their sub-tools with them")
+
+# ⚠ Anim Layers is LAZY (PERF_PLAN option C): built on FIRST OPEN, and proved
+# through the real path — a tab switch — not by calling the builder.
+ok(_w.anim_layers is None,
+   "tabs: the lazy Anim Layers tab is NOT built at startup")
+_al_index = _tab_titles.index("Anim Layers")
+_w.main_tabs.setCurrentIndex(_al_index)
+ok(_w.anim_layers is not None and _w.layers_page is not None
+   and _w.markers_tool is not None,
+   "tabs: opening Anim Layers builds it on demand")
+
+# ⚠⚠ THIS MUST STAY BELOW THE LAZY-TAB OPEN ABOVE. `_pages()` counts what has
+# been BUILT, so on a window where Anim Layers has never been opened the answer
+# is legitimately one short — measured: 9 vs 10. Moved above the open, this
+# check goes red on perfectly good code. Injection-proved 2026-08-15: with
+# every lazy tab built it is exactly equal, and dropping a single page from
+# `_pages()` takes it to 9 and fails.
+ok(len(_w._pages()) == _w.tabs.count() + len(_w.FREE_TOOLS),
+   "⚠ tabs: _pages() carries every tool tab, with every lazy tab built "
+   "(%d library + %d tools, got %d)"
+   % (_w.tabs.count(), len(_w.FREE_TOOLS), len(_w._pages())))
+ok(_w.physics.rail.topLevelItem(0).text(0) == "BONES",
+   "tabs: the Physics rail lists BONES — a live page, not a stub")
+_w.save_settings()
+ok(True, "tabs: save_settings() survives with every tab built")
+
+# The dead bridge the app hands a tool when Blender is absent. ⚠ `capabilities`
+# must be a LIST, not a failure dict — returning a dict crashed Physics once.
+_dead = mainmod._DeadBridge()
+ok(_dead.feature_reason("anything") is None,
+   "dead bridge: reports features as available, so tools look normal")
+ok(_dead.capabilities == [] and _dead.addon_version is None,
+   "dead bridge: capabilities is a LIST, not a failure dict")
+ok(_dead.request("quad_status")["ok"] is False,
+   "dead bridge: every command fails instantly")
+ok(_dead.anything_written_later()["ok"] is False,
+   "dead bridge: including helpers that do not exist yet")
+
+# ⚠ THE TEARDOWN, WITH EVERY TAB LIVE. The render queue owns a worker; closing
+# with all tabs built is the path that has to shut it down cleanly.
+from PySide6.QtGui import QCloseEvent  # noqa: E402
+
+_w.closeEvent(QCloseEvent())
+ok(True, "tabs: closeEvent shuts the render queue down cleanly with every tab live")
+print("")
 print("%d passed, %d failed" % (len(PASS), len(FAIL)))
 for f in FAIL:
     print("FAIL " + f)
