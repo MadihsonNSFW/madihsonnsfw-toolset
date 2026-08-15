@@ -64,6 +64,9 @@ markdown_extensions:
   - toc:
       permalink: true
       permalink_title: Link to this section
+  # Figure captions: `/// caption` under an image. Without this the
+  # marker renders as literal text, which is what it did first.
+  - pymdownx.blocks.caption
   - pymdownx.details
   - pymdownx.inlinehilite
   - pymdownx.superfences

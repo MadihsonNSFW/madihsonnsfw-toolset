@@ -11,6 +11,13 @@ network connections at all** — no accounts, no sign-in, no telemetry.
 [⬇ Download for Windows](https://github.com/MadihsonNSFW/madihsonnsfw-toolset/releases/latest){ .md-button .md-button--primary }
 [Install guide](install.md){ .md-button }
 
+![The Studio Library tab](images/studio-library.png)
+
+/// caption
+**Studio Library** — ten kinds of reusable item in one searchable grid. The
+previews are blurred in this screenshot; in the app they are your own thumbnails.
+///
+
 ---
 
 ## What it actually is

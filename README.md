@@ -16,6 +16,12 @@ one window that talks to Blender over a local connection.
 **Every tool is free.** No accounts, no sign-in, no telemetry — the app makes no
 network connections at all.
 
+![The Studio Library tab](manual/images/studio-library.png)
+
+<sub>Studio Library — ten kinds of reusable item in one searchable grid. The
+previews are blurred in this screenshot; in the app they are your own
+thumbnails.</sub>
+
 ---
 
 ## What it is
