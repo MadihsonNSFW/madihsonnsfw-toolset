@@ -90,8 +90,8 @@ They speak over TCP on **port 9877**, on your own machine and nowhere else.
 
 -   **[Optimization](tabs/optimization.md)**
 
-    Camera-measured texture shrinking, managed decimation, and a report of
-    what is making your .blend so big.
+    Camera-measured texture shrinking, managed decimation, quad remeshing, and
+    a report of what is making your .blend so big.
 
 -   **[Physics](tabs/physics.md)**
 

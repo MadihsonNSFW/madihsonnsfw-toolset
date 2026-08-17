@@ -49,7 +49,7 @@ scroll while a 461-bone rig evaluates next door.
 | **Node Setup** | Relink a node's outgoing wires; set up an image sequence without typing into file fields |
 | **Node Editor** | A node canvas for texture baking, driving Blender's own bake operator |
 | **MadiRef** | Video reference playing in the viewport and in the app at once, frame-matched, with drawn notes |
-| **Optimization** | Camera-measured texture shrinking, managed decimation, and what is making your `.blend` so big |
+| **Optimization** | Camera-measured texture shrinking, managed decimation, quad remeshing, and what is making your `.blend` so big |
 | **Physics** | Spring-driven jiggle on bones, with collision, wind and baking |
 | **NSFW Tools** | Ready-made geometry-node rigs, built into your scene in one click |
 

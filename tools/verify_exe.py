@@ -336,7 +336,16 @@ MARKERS = [
     # `blender_addon/** eol=lf` in `.gitattributes` now keeps the checkout
     # identical everywhere; this value is the packed sha of that canonical
     # source, reproduced byte for byte by the runner.
-    ("addon_bundle", "8d501dbdcb95e874", True),
+    # 0.49.0 — Quadify RESTORED, so the bundle is 45 files / 2.7 MB again
+    # (the engine\ folder is most of it) rather than the 15-file / 294 KB
+    # pack that 8d501dbd… was. ⚠ Verified LF-clean before pinning: every text
+    # file under `blender_addon\` was checked for CRLF, because that is what
+    # moved this hash the last time (see the block above the desktop markers).
+    ("addon_bundle", "d254f571ec21de73", True),
+    # ⚠ The Quadify-LESS bundle, pinned absent: a build made from source that
+    # still has the removal would ship an app with a Quadify tab whose Blender
+    # half answers no `quad_*` at all, and nothing else would report it.
+    ("addon_bundle", "8d501dbdcb95e874", False),
     ("addon_bundle", "10fd4f45dc7bb4a2", False),
     ("addon_bundle", "15758d6b33ae5f84", False),
     # --- 2026-08-07, all of Blender's bake options + a sample count -------
@@ -470,7 +479,7 @@ MARKERS = [
     # ⚠ A VERSION-STRING MARKER DIES WHEN THE VERSION MOVES — fourth time.
     # This is EXPECTED_ADDON_VERSION; validate it against source before every
     # build rather than discovering it after a four-minute one.
-    ("bridge", "0.48.0", True),
+    ("bridge", "0.49.0", True),
     # --- THE RESKIN + the update-install fix (1.17.0) ----------------------
     # ⚠ The lesson Quadify taught, applied on the way in this time: a new
     # module with NO markers can be missing from a build and only fail when
@@ -490,13 +499,17 @@ MARKERS = [
     ("chrome", "THE NATIVE FRAME IS NOT REMOVED", True),
     ("chrome", "HAS TO BE ANSWERED TOO", True),
     ("chrome", "Restore down", True),
-    # --- Quadify REMOVED 2026-08-17 (Marty: "wipe qadify FULLY from our
-    # app"). ⚠⚠ ABSENCE markers, not deletions. A build made from pre-removal
-    # source starts perfectly, shows a Quadify tool, and ships 5.4 MB of
-    # Windows-only binaries inside its add-on zip - nothing about it looks
-    # wrong. These are the only things that would catch it.
-    ("bridge", "quad_status", False),
-    ("main", "QuadifyTool", False),
+    # --- Quadify (1.15.0), REMOVED 2026-08-17 and RESTORED the same day at
+    # Marty's request ("can we reappend quadify like we had before"). ⚠ The
+    # absence twins that guarded the removal are gone again — a marker pinned
+    # both present and absent fails every build, so the pair must move
+    # together. ⚠ Quadify originally shipped with NO markers at all, so a
+    # build could carry the tab with the module missing and only fail when
+    # the button was pressed. All three are string CONSTANTS validated
+    # against source, not comments.
+    ("quadify", "Retopologising", True),
+    ("quadify", "quad_progress", True),
+    ("optimizer", "quad_progress", True),
     # --- the desktop surface ----------------------------------------------
     # ⚠ These three outlived the cancelled port (2026-08-17) because they are
     # worth having on Windows alone: `desktop.py` is the ONE place the app asks
@@ -520,6 +533,12 @@ MARKERS = [
     # 0.40.0 and 0.44.0 (both real `since_version`s) plus the expected one.
     # ⚠ "0.45.1" joined 2026-08-14 evening when EXPECTED moved to 0.46.0
     # (the all-tabs-free add-on) — sixth move. Same source check as ever.
+    # ⚠ "0.48.0" joined 2026-08-17 evening when EXPECTED moved to 0.49.0 for
+    # the Quadify restore — the sixth time a version-string marker has had to
+    # move, and it failed the build rather than passing quietly, which is the
+    # whole point of the pair. Checked against source first: `0.48.0` appears
+    # nowhere else in `bridge.py`.
+    ("bridge", "0.48.0", False),
     ("bridge", "0.45.1", False),
     ("bridge", "0.45.0", False),
     ("bridge", "0.42.0", False),

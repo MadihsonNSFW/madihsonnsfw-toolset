@@ -58,6 +58,7 @@ import nsfw as nsfwmod
 import optimizer as optimizermod
 import physics as physicsmod
 import picker as pickermod
+import quadify as quadifymod
 import render_presets
 import render_tools
 import rendering as renderingmod
@@ -4857,6 +4858,11 @@ class MainWindow(QMainWindow):
                       group="Optimize")
         self.optimizer_meshes_tool = optimizermod.MeshesTool(self.bridge, self)
         page.add_tool(self.optimizer_meshes_tool, "Meshes", group="Optimize")
+        # Quad retopology. In the OPTIMIZE group beside the others (Marty,
+        # 2026-08-13 - a separate RETOPOLOGY group was offered and declined).
+        # See docs\quadify.md.
+        self.quadify_tool = quadifymod.QuadifyTool(self.bridge, self)
+        page.add_tool(self.quadify_tool, "Quadify", group="Optimize")
         self.optimizer_restore_tool = optimizermod.RestoreTool(self.bridge, self)
         page.add_tool(self.optimizer_restore_tool, "Restore",
                       group="Maintenance")
@@ -4875,7 +4881,7 @@ class MainWindow(QMainWindow):
         # re-broadcasts, so six open tools still cost one round trip per tick.
         for tool in (self.optimizer_fixed_tool, self.optimizer_meshes_tool,
                      self.optimizer_restore_tool, self.optimizer_memory_tool,
-                     self.optimizer_filesize_tool):
+                     self.optimizer_filesize_tool, self.quadify_tool):
             self.optimizer_adaptive_tool.status_refreshed.connect(
                 tool.apply_status)
         self.optimizer = page

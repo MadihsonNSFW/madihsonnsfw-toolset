@@ -166,10 +166,10 @@ class ProgressRow(QWidget):
     def start(self, label, command="opt_progress"):
         """Show the bar for a run. `command` is which progress command to poll.
 
-        ⚠ Parameterised because the tab once hosted a second kind of run
-        (Quadify, removed 2026-08-17) polling its own progress command. Keep it
-        that way: one proven widget beats a second bar with its own miss
-        counter, its own capability check and its own bugs. Both records
+        ⚠ The tab has ONE bar and more than one kind of run — Quadify's
+        stages come from `quad_progress`. Parameterising the command is what
+        keeps that a single proven widget instead of a second bar with its own
+        miss counter, its own capability check and its own bugs. Both records
         have the same shape (`active/phase/done/total/item`), which is a
         deliberate constraint on the add-on side, not a coincidence.
         """
@@ -265,8 +265,8 @@ class _OptimizerTool(QWidget):
     Two class attributes exist so a tool in this tab that is NOT the optimizer
     can share this plumbing without inheriting the optimizer's assumptions:
 
-    - `CONFIG_KEY` — which config.json group its dials live in. A tool that is
-      not the optimizer keeps its own group rather than landing in this dict.
+    - `CONFIG_KEY` — which config.json group its dials live in. Quadify's are
+      not optimizer settings and must not land in the same dict.
     - ⚠ `BROADCASTS` — whether this tool's replies are an optimizer STATUS.
       `_finished` fans every reply out to all six tools, which is right when
       every command answers with the whole status and **actively wrong** for a

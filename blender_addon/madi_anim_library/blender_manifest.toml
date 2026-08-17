@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "madi_anim_library"
-version = "0.48.0"
+version = "0.49.0"
 name = "MadihsonNSFW Toolset (Bridge)"
 tagline = "Studio-Library-style pose and animation library bridge for Blender"
 maintainer = "MadihsonNSFW <martymason4704@gmail.com>"

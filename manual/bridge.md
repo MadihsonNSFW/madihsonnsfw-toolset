@@ -3,7 +3,7 @@
 The app drives Blender by sending commands to the add-on over a TCP socket on
 **port 9877**, bound to the loopback interface.
 
-There are **142 commands**.
+There are **148 commands**.
 
 ---
 
@@ -72,6 +72,7 @@ perfectly.
 | `save_*` / `apply_*` | 16 | Library item round trips |
 | `madiref_*` | 7 | Video reference |
 | `list_*` | 7 | Scene reads |
+| `quad_*` | 6 | Quad remeshing |
 | `render_preset_*` | 3 | Render presets |
 
 ---
