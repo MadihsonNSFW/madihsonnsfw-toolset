@@ -4409,7 +4409,15 @@ class MainWindow(QMainWindow):
         self.addon_update_button.setStyleSheet("color: #d8c74f;")
         self.addon_update_button.setToolTip(
             "Install the Blender extension this app was built for")
-        self.addon_update_button.clicked.connect(self.show_library_settings)
+        # ⚠⚠ THIS WENT TO `show_library_settings` UNTIL 2026-08-17 AND THAT WAS
+        # THE BUG MARTY REPORTED as "it doesn't do anything at all". The button
+        # says "Update add-on"; it opened a settings dialog and updated nothing,
+        # leaving you to find "Install in Blender" inside it — the exact hunt
+        # the comment above says this button exists to remove. `install_addon_now`
+        # was written for this and **was never connected to anything** — an
+        # orphaned handler, which no suite noticed because nothing tested the
+        # button. `app_ui_test.py` now pins the connection.
+        self.addon_update_button.clicked.connect(self.install_addon_now)
         self.addon_update_button.hide()
         self.statusBar().addPermanentWidget(self.addon_update_button)
 
@@ -4502,10 +4510,21 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(text, 8000)
 
     def _on_addon_state(self, state):
+        # ⚠⚠ THIS LINE CALLED `clear_progress()` UNTIL 2026-08-17 AND NO SUCH
+        # METHOD HAS EVER EXISTED — the status bar's is `hide_progress()`. The
+        # slot raised AttributeError on the terminal state, so a **completely
+        # successful** install left "Installing Blender add-on" spinning
+        # forever (Marty: "it seems like it installed it but i still see
+        # loading going forever" — it had installed, 0.49.0, reloaded).
+        # ⚠ And the FAILED branch is BELOW it, so a genuine failure showed no
+        # warning either: every outcome looked like a hang. Qt swallows an
+        # exception in a slot to stderr, which a windowed build has nowhere to
+        # print — **a GUI slot is the one place a typo'd method name is
+        # invisible.** `app_ui_test.py` now drives the real states through it.
         if state == addon_push.INSTALLING:
             self.statusBar().show_progress("Installing Blender add-on")
             return
-        self.statusBar().clear_progress()
+        self.statusBar().hide_progress()
         if state == addon_push.FAILED:
             QMessageBox.warning(self, "Blender add-on",
                                 self.addon_pusher.message

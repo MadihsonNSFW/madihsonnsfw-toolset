@@ -13,6 +13,38 @@ Toolset makes **no network connections at all**.
 
 ## Update notes
 
+### 1.21.1 — the "Update add-on" button actually updates the add-on
+
+Two bugs in the same corner, both about the Blender add-on install. The
+installing itself was never broken — only what the app told you about it.
+
+- **"Update add-on" now installs the add-on.** The button beside the version
+  warning used to open the Settings window instead, leaving you to find
+  **Install in Blender** inside it. It goes straight to the confirmation now.
+- **"Installing Blender add-on…" now stops when it finishes.** The progress
+  strip never came down, so a completely successful install looked like it had
+  hung. If you saw that: the add-on almost certainly installed fine.
+- **A failed install now says so.** The warning that reports a failure was
+  unreachable, which meant success and failure looked exactly alike.
+
+### 1.21.0 — Quadify is back
+
+**Quad remeshing returned to the Optimization tab**, exactly as it worked
+before: density, sharp-edge detection, symmetry, your original kept and hidden,
+Blender usable while it runs, and cancel. It was removed in 1.20.0 and restored
+the same day.
+
+⚠ **Update the Blender add-on for this one** (⚙ Settings ▸ **Update add-on**).
+Quadify's Blender half — the remeshing engine and its commands — lives in the
+extension, so the tool cannot run against an older one. The app expects add-on
+**0.49.0**.
+
+### 1.20.0 — Windows only
+
+Housekeeping, and one thing worth saying plainly: **the Toolset is a Windows
+application.** A Linux and macOS port was explored and cancelled, so there is
+no ambiguity about what is supported.
+
 ### 1.19.0 — open source, and the app stops phoning home
 
 **The Toolset is now on GitHub, and it no longer updates itself.**
