@@ -5,8 +5,8 @@ queue that works with Blender closed, a 2D bone picker, animation layers, video
 reference in the viewport, scene optimisation, texture baking and rig tools — in
 one window that talks to Blender over a local connection.
 
-![app](https://img.shields.io/badge/app-1.19.0-2E6F6A)
-![add-on](https://img.shields.io/badge/add--on-0.47.0-B4651A)
+![app](https://img.shields.io/badge/app-1.20.0-2E6F6A)
+![add-on](https://img.shields.io/badge/add--on-0.48.0-B4651A)
 ![blender](https://img.shields.io/badge/blender-5.x-E87D0D)
 ![python](https://img.shields.io/badge/python-3.10-3776AB)
 ![licence](https://img.shields.io/badge/licence-GPL--3.0-B4487A)
@@ -49,7 +49,7 @@ scroll while a 461-bone rig evaluates next door.
 | **Node Setup** | Relink a node's outgoing wires; set up an image sequence without typing into file fields |
 | **Node Editor** | A node canvas for texture baking, driving Blender's own bake operator |
 | **MadiRef** | Video reference playing in the viewport and in the app at once, frame-matched, with drawn notes |
-| **Optimization** | Camera-measured texture shrinking, managed decimation, quad remeshing, and what is making your `.blend` so big |
+| **Optimization** | Camera-measured texture shrinking, managed decimation, and what is making your `.blend` so big |
 | **Physics** | Spring-driven jiggle on bones, with collision, wind and baking |
 | **NSFW Tools** | Ready-made geometry-node rigs, built into your scene in one click |
 

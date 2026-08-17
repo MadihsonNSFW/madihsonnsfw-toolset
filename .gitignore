@@ -25,7 +25,22 @@ docs/
 HANDOFF.md
 RESUME_PROMPT.md
 *_PLAN.md
-tests/branding_words.py
+
+# --- the development rig (2026-08-17) --------------------------------------
+# ⚠ ALL OF THIS STAYS ON DISK - it is untracked, not deleted. The repo is for
+# someone who wants to RUN or BUILD the Toolset on Windows, and none of it is
+# needed for either: `app\build_exe.ps1` -> `tools\build_app.py` ->
+# `tools\pack_addon.py` -> `tools\verify_exe.py` is the whole build chain.
+#
+# ⚠⚠ `specs\` is not merely unneeded - its own README says **"Nothing in this
+# folder may ship readable"**. The plain-text node-group captures were public
+# from the first public commit until this one. Removing them here stops any
+# further exposure; it does NOT erase them from the git history.
+tests/
+specs/
+tools/gen_pitfalls.py
+tools/mainthread_profiler.py
+tools/pack_spec.py
 
 # --- local-only deployment detail ------------------------------------------
 # ⚠ The licence server URL. `app\licensing\manager.py` falls back to the

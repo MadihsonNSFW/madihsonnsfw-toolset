@@ -1,24 +1,21 @@
 """MadihsonNSFW Toolset app — settings (config.json next to main.py / the exe).
 
-⚠⚠ **TWO ROOTS, AND THEY ARE NOT THE SAME THING.**
+**This is a WINDOWS application.** The Linux/macOS port was cancelled on
+2026-08-17 (Marty: *"we cancel ALL porting of linux and mac and ONLY focus on
+windows"*), and the platform branch that used to live here went with it.
 
-* `APP_DIR` — where the app's own files ARE. **Read-only.** `assets\` lives
-  here, and on macOS that is inside the `.app` bundle.
+`APP_DIR` and `DATA_DIR` are **the same folder** and always were on Windows:
+
+* `APP_DIR` — where the app's own files ARE (`assets\`).
 * `DATA_DIR` — where the app WRITES. `config.json`, the default library,
   `baked\`, `dev_edits.json`, `_madiref_cache\`, `_madiref_notes\`,
   `render_queue\`, `render_presets\`, `_preview_cache\`.
 
-They were one root until the 2026-08-16 cross-platform pass, and on Windows
-they still resolve to the same folder — nothing of Marty's moves. The split
-exists because on macOS `dirname(sys.executable)` is
-`Toolset.app/Contents/MacOS/`: writing there breaks the bundle's signature and
-fails outright when the app is installed to `/Applications`.
-
-⚠ **The rule is EXPLICIT PER PLATFORM, never a writability probe.** A probe is
-the "empty value, silent fallback" shape that once relocated Marty's own
-library without telling him. Windows and Linux stay portable —
-data beside the binary, which is this app's whole philosophy — and only macOS,
-which has no existing users to move, gets a user-data folder.
+⚠ **The two names are KEPT even though they are now equal**, because ~50 call
+sites across the app and the suites name one or the other, and the suites in
+particular redirect `DATA_DIR` at a temp folder so a test run cannot write the
+real config. Collapsing them would be a large rename for no behavioural gain.
+Data lives beside the binary — portable, which is this app's whole philosophy.
 """
 
 import json
@@ -31,17 +28,7 @@ if getattr(sys, "frozen", False):
 else:
     APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
-if sys.platform == "darwin":
-    DATA_DIR = os.path.join(os.path.expanduser("~"), "Library",
-                            "Application Support", "MadihsonNSFW Toolset")
-    try:
-        os.makedirs(DATA_DIR, exist_ok=True)
-    except OSError:
-        # Unwritable home is not a reason to refuse to start: fall back to the
-        # old behaviour and let the first real write report the problem.
-        DATA_DIR = APP_DIR
-else:
-    DATA_DIR = APP_DIR
+DATA_DIR = APP_DIR
 
 if getattr(sys, "frozen", False):
     DEFAULT_LIBRARY = os.path.join(DATA_DIR, "library")

@@ -35,25 +35,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DIST = os.path.join(ROOT, "app", "dist")
 _NAME = "MadihsonNSFW Toolset"
 
-# ⚠ THE BUILD IS IN A DIFFERENT PLACE ON EACH PLATFORM, and the native library
-# beside it has a different suffix. Getting this wrong does not fail loudly —
-# the walk simply finds nothing and every marker "passes" against an empty
-# archive, which is the worst possible outcome for a verifier. `main()` refuses
-# outright when the binary is missing, so a wrong path is a stop, not a pass.
-if sys.platform == "darwin":
-    # `--windowed` produces a .app BUNDLE; the onedir folder beside it is
-    # scaffolding. Everything ships inside Contents/.
-    EXE = os.path.join(_DIST, _NAME + ".app", "Contents", "MacOS", _NAME)
-    INTERNAL = os.path.join(_DIST, _NAME + ".app", "Contents", "Frameworks")
-    NATIVE_SUFFIX = ".so"
-elif sys.platform.startswith("win"):
-    EXE = os.path.join(_DIST, _NAME, _NAME + ".exe")
-    INTERNAL = os.path.join(_DIST, _NAME, "_internal")
-    NATIVE_SUFFIX = ".pyd"
-else:
-    EXE = os.path.join(_DIST, _NAME, _NAME)
-    INTERNAL = os.path.join(_DIST, _NAME, "_internal")
-    NATIVE_SUFFIX = ".so"
+# ⚠ Getting these paths wrong does not fail loudly — the walk simply finds
+# nothing and every marker "passes" against an empty archive, which is the
+# worst possible outcome for a verifier. `main()` refuses outright when the
+# binary is missing, so a wrong path is a stop, not a pass.
+# ⚠ Windows only since 2026-08-17; the macOS `.app`/`Frameworks` and Linux
+# branches went with the cancelled port.
+EXE = os.path.join(_DIST, _NAME, _NAME + ".exe")
+INTERNAL = os.path.join(_DIST, _NAME, "_internal")
+NATIVE_SUFFIX = ".pyd"
 
 # (module, marker, must_be_present)
 MARKERS = [
@@ -507,12 +497,13 @@ MARKERS = [
     # wrong. These are the only things that would catch it.
     ("bridge", "quad_status", False),
     ("main", "QuadifyTool", False),
-    # --- the cross-platform port (1.20.0) ---------------------------------
-    # ⚠⚠ A BUILD FROM PRE-PORT SOURCE IS PERFECT ON WINDOWS AND
-    # BROKEN ONLY WHERE NOBODY HERE CAN RUN IT. `DATA_DIR` is what keeps the
-    # macOS build from writing inside its own .app bundle, and `os.startfile`
-    # does not exist off Windows - it raises AttributeError, which the callers'
-    # `except OSError` does not catch. Present-and-absent, one each.
+    # --- the desktop surface ----------------------------------------------
+    # ⚠ These three outlived the cancelled port (2026-08-17) because they are
+    # worth having on Windows alone: `desktop.py` is the ONE place the app asks
+    # the OS to open or reveal a file, and `main` must go through it rather
+    # than calling `os.startfile` itself — five scattered call sites is what
+    # the module replaced. `DATA_DIR` now equals `APP_DIR`, and the name is
+    # still what ~50 call sites and every suite's temp redirect use.
     ("config", "DATA_DIR", True),
     ("desktop", "reveal_command", True),
     ("main", "os.startfile", False),

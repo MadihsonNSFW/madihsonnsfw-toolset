@@ -1,34 +1,23 @@
-"""Build the standalone app — ONE recipe, three platforms.
+"""Build the standalone app — **Windows only**.
 
     python tools\\build_app.py            # build here
-    python tools/build_app.py --no-dev    # CI: skip the dev conveniences
+    python tools\\build_app.py --no-dev   # skip the dev conveniences
 
 ⚠⚠ **THIS IS THE ONLY BUILD RECIPE.** `app\\build_exe.ps1` is a thin wrapper
-that calls this with the venv's Python, and the CI matrix calls it directly.
-Two recipes would drift, and the one that drifts is always the one nobody runs
-by hand — which, from now on, is Windows.
+that calls this with the venv's Python. Two recipes would drift, and the one
+that drifts is always the one nobody runs by hand.
 
-⚠ **PyInstaller CANNOT CROSS-COMPILE.** A macOS bundle can only be produced on
-macOS and a Linux binary on Linux. That is the entire reason the CI matrix
-exists; this script's job is to behave identically on whichever machine it
-lands on.
+⚠ **THE LINUX/macOS PORT WAS CANCELLED on 2026-08-17** (Marty: *"we cancel ALL
+porting of linux and mac and ONLY focus on windows"*). The per-platform icon,
+the `.app` bundle handling and the CI build matrix all went with it. This
+script now **refuses to run off Windows** rather than producing something
+nobody tests: PyInstaller cannot cross-compile, so a non-Windows run could
+only ever make a binary this project does not support.
 
-What differs per platform, and why:
-
-* **`--add-data` uses `os.pathsep`** — `;` on Windows, `:` everywhere else.
-  Hard-coding the semicolon silently produces a build with no CHANGELOG on
-  Linux and macOS, and the What's New tab then opens on an apology.
-* **The icon is a different FILE, not a different flag.** `.ico` on Windows,
-  `.icns` on macOS (`tools\\make_icns.py` writes it), and **nothing at all on
-  Linux** — PyInstaller has no icon slot in an ELF binary, and passing one
-  there is a warning at best.
-* **macOS `--windowed` produces a `.app` BUNDLE** beside the onedir folder.
-  The bundle is what ships; the folder is scaffolding.
-* **The running-app guard is Windows-only** because the problem is: a running
-  exe cannot be replaced there, and PyInstaller does not fail politely about
-  it — it dies part way and leaves the OLD binary in place. Two rebuilds were
-  silently skipped that way (`docs\\app-shell.md`). POSIX replaces a running
-  binary's file happily, so there is nothing to guard.
+⚠ **The running-app guard matters**: a running exe cannot be replaced on
+Windows, and PyInstaller does not fail politely about it — it dies part way
+and leaves the OLD binary in place. Two rebuilds were silently skipped that
+way (`docs\\app-shell.md`).
 """
 import argparse
 import os
@@ -42,7 +31,6 @@ APP = os.path.join(ROOT, "app")
 NAME = "MadihsonNSFW Toolset"
 
 WINDOWS = sys.platform.startswith("win")
-MACOS = sys.platform == "darwin"
 
 
 def log(msg):
@@ -56,24 +44,12 @@ def app_version():
 
 
 def icon_path():
-    """The icon for THIS platform, or None where the format has no slot."""
-    if WINDOWS:
-        return os.path.join(APP, "assets", "app_icon.ico")
-    if MACOS:
-        icns = os.path.join(APP, "assets", "app_icon.icns")
-        if not os.path.isfile(icns):
-            # Buildable without it; say so rather than failing the build.
-            log("NOTE: no app_icon.icns — run tools/make_icns.py for a "
-                "macOS icon. Building without one.")
-            return None
-        return icns
-    return None
+    """The app icon."""
+    return os.path.join(APP, "assets", "app_icon.ico")
 
 
 def guard_running_exe():
-    """Windows only: refuse rather than produce a silently stale build."""
-    if not WINDOWS:
-        return
+    """Refuse rather than produce a silently stale build."""
     exe = os.path.join(APP, "dist", NAME, NAME + ".exe")
     if not os.path.isfile(exe):
         return
@@ -90,24 +66,28 @@ def guard_running_exe():
 
 def built_path():
     """Where the thing we just built actually is."""
-    dist = os.path.join(APP, "dist")
-    if MACOS:
-        return os.path.join(dist, NAME + ".app")
-    return os.path.join(dist, NAME, NAME + (".exe" if WINDOWS else ""))
+    return os.path.join(APP, "dist", NAME, NAME + ".exe")
 
 
 def beside_the_binary():
     """The folder `updates.py` looks in first — `dirname(sys.executable)`."""
-    if MACOS:
-        return os.path.join(APP, "dist", NAME + ".app", "Contents", "MacOS")
     return os.path.join(APP, "dist", NAME)
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-dev", action="store_true",
-                    help="skip the dev-only conveniences (CI uses this)")
+                    help="skip the dev-only conveniences")
     args = ap.parse_args(argv)
+
+    # ⚠ Refuse off Windows rather than emit an untested binary. PyInstaller
+    # cannot cross-compile, so a run here on Linux or macOS would not be a
+    # Windows build going wrong — it would be a build of a platform this
+    # project deliberately does not support (port cancelled 2026-08-17).
+    if not WINDOWS:
+        log("REFUSING TO BUILD: this is a Windows-only application and "
+            "%s is not Windows." % sys.platform)
+        return 1
 
     guard_running_exe()
 
@@ -125,7 +105,7 @@ def main(argv=None):
     version = app_version()
     log("Building %s %s for %s" % (NAME, version, sys.platform))
 
-    sep = os.pathsep          # ';' on Windows, ':' elsewhere — see docstring
+    sep = os.pathsep          # ';' on Windows — PyInstaller's --add-data
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
            "--windowed", "--name", NAME,
            # zstandard is imported inside a try/except in blendsize.py, so a

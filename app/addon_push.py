@@ -14,7 +14,6 @@ Runs off the GUI thread. Failure is always a sentence a user can act on.
 
 import os
 import re
-import sys
 import tempfile
 import time
 import zipfile
@@ -51,18 +50,14 @@ MANIFEST_NAME = "blender_manifest.toml"
 def blender_config_roots():
     """Every `…/Blender/<x.y>/` folder on this machine, or [] if there are none.
 
-    Windows is the only one that matters in practice, but the other two are two
-    lines and stop this from being silently useless off it.
+    ⚠ Windows only — the macOS and Linux branches went with the cancelled port
+    (2026-08-17). The Toolset is a Windows application, so there is no machine
+    where this could be asked about another platform's Blender.
     """
     home = os.path.expanduser("~")
-    if sys.platform.startswith("win"):
-        base = os.path.join(os.environ.get("APPDATA")
-                            or os.path.join(home, "AppData", "Roaming"),
-                            "Blender Foundation", "Blender")
-    elif sys.platform == "darwin":
-        base = os.path.join(home, "Library", "Application Support", "Blender")
-    else:
-        base = os.path.join(home, ".config", "blender")
+    base = os.path.join(os.environ.get("APPDATA")
+                        or os.path.join(home, "AppData", "Roaming"),
+                        "Blender Foundation", "Blender")
     try:
         names = sorted(os.listdir(base), reverse=True)
     except OSError:

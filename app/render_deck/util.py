@@ -2,9 +2,15 @@
 
 Queue settings and session live in a `render_queue\\` folder next to the
 toolset's config.json (config.DATA_DIR) — beside the exe when frozen, beside
-main.py from source, and under `~/Library/Application Support` on macOS — so
-the dev app and the built exe keep separate state, exactly like config.json
-itself. Falls back to `~/.madi_render_queue` if that folder can't be written.
+main.py from source — so the dev app and the built exe keep separate state,
+exactly like config.json itself. Falls back to `~/.madi_render_queue` if that
+folder can't be written.
+
+⚠ `open_path` below still branches on platform. That is NOT porting left
+behind: this folder is a vendored copy of the standalone Madi Offline Render
+Tool, whose copies have been allowed to diverge since 2026-07-31, and the
+branch came with it. Left alone so the vendored file stays close to its
+original.
 """
 from __future__ import annotations
 
