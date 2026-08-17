@@ -5,7 +5,7 @@ queue that works with Blender closed, a 2D bone picker, animation layers, video
 reference in the viewport, scene optimisation, texture baking and rig tools — in
 one window that talks to Blender over a local connection.
 
-![app](https://img.shields.io/badge/app-1.21.0-2E6F6A)
+![app](https://img.shields.io/badge/app-1.21.1-2E6F6A)
 ![add-on](https://img.shields.io/badge/add--on-0.49.0-B4651A)
 ![blender](https://img.shields.io/badge/blender-5.x-E87D0D)
 ![python](https://img.shields.io/badge/python-3.10-3776AB)
