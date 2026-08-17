@@ -222,6 +222,13 @@ REMOVED = {
     "tests\\app_updater_test.py", "tests\\lic_client_test.py",
     "blender_addon\\madi_anim_library\\entitlement.py",
     "blender_addon\\madi_anim_library\\ed25519.py",
+    # 1.20.0 (2026-08-17): Quadify, wiped outright — the app tool, the add-on
+    # module, both suites and the whole 5.4 MB engine\ folder. Named only by
+    # the tombstone `docs\quadify.md` and by QUADIFY_PLAN.md.
+    "app\\quadify.py",
+    "blender_addon\\madi_anim_library\\quadify.py",
+    "blender_addon\\madi_anim_library\\engine",
+    "tests\\quadify_test.py", "tests\\app_quadify_test.py",
 }
 
 _path_bad = []

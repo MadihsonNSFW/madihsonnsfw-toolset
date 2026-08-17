@@ -166,10 +166,10 @@ class ProgressRow(QWidget):
     def start(self, label, command="opt_progress"):
         """Show the bar for a run. `command` is which progress command to poll.
 
-        ⚠ The tab has ONE bar and more than one kind of run now — Quadify's
-        stages come from `quad_progress`. Parameterising the command is what
-        keeps that a single proven widget instead of a second bar with its own
-        miss counter, its own capability check and its own bugs. Both records
+        ⚠ Parameterised because the tab once hosted a second kind of run
+        (Quadify, removed 2026-08-17) polling its own progress command. Keep it
+        that way: one proven widget beats a second bar with its own miss
+        counter, its own capability check and its own bugs. Both records
         have the same shape (`active/phase/done/total/item`), which is a
         deliberate constraint on the add-on side, not a coincidence.
         """
@@ -265,8 +265,8 @@ class _OptimizerTool(QWidget):
     Two class attributes exist so a tool in this tab that is NOT the optimizer
     can share this plumbing without inheriting the optimizer's assumptions:
 
-    - `CONFIG_KEY` — which config.json group its dials live in. Quadify's are
-      not optimizer settings and must not land in the same dict.
+    - `CONFIG_KEY` — which config.json group its dials live in. A tool that is
+      not the optimizer keeps its own group rather than landing in this dict.
     - ⚠ `BROADCASTS` — whether this tool's replies are an optimizer STATUS.
       `_finished` fans every reply out to all six tools, which is right when
       every command answers with the whole status and **actively wrong** for a
@@ -579,7 +579,9 @@ class AdaptiveTool(_OptimizerTool):
         self.status.setTextInteractionFlags(Qt.TextSelectableByMouse)
         lay.addWidget(self.status)
 
-        self._on_animation(self.chk_animation.isChecked())
+        # ⚠ the SYNC, not the handler — the handler saves, and a constructor
+        # must not write the user's config (see `_sync_animation`)
+        self._sync_animation(self.chk_animation.isChecked())
 
         self.timer = None            # stays None when the feature is gated
         reason = self.feature_reason()
@@ -614,10 +616,23 @@ class AdaptiveTool(_OptimizerTool):
 
     # ------------------------------------------------------------------
 
-    def _on_animation(self, on):
+    def _sync_animation(self, on):
+        """Match the step controls to the tickbox — and write NOTHING.
+
+        ⚠ Split out of `_on_animation` because the constructor calls it to get
+        the initial enabled state right, and going through the handler meant
+        **building the window SAVED the config**. The value written was the one
+        just restored on the line that makes the tickbox, so nothing was ever
+        lost — but it is the very pattern `save_settings` warns about, and it
+        is invisible on a machine that already has a `config.json`: only a
+        fresh checkout shows it, as a file appearing out of nowhere.
+        """
         self.slider_step.setEnabled(bool(on))
         if self._step_label is not None:
             self._step_label.setEnabled(bool(on))
+
+    def _on_animation(self, on):
+        self._sync_animation(on)
         self.save_settings(animation=bool(on))
 
     def refresh(self):

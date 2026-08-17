@@ -28,6 +28,10 @@ import config                                              # noqa: E402
 
 TMP = tempfile.mkdtemp(prefix="madi_devedit_")
 config.APP_DIR = TMP
+# DATA_DIR is the WRITABLE root (macOS splits it off APP_DIR); the
+# caches, queues and presets read it, so redirecting only APP_DIR
+# would build them in the real dist folder.
+config.DATA_DIR = TMP
 config.CONFIG_PATH = os.path.join(TMP, "config.json")
 
 import devedit                                             # noqa: E402

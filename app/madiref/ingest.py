@@ -32,6 +32,7 @@ import queue
 import shutil
 import struct
 import subprocess
+import sys
 import threading
 
 from PySide6.QtCore import (QBuffer, QByteArray, QObject, QTimer, QUrl, Qt,
@@ -42,7 +43,7 @@ import config
 
 from . import proxy
 
-CACHE_ROOT = os.path.join(config.APP_DIR, "_madiref_cache")
+CACHE_ROOT = os.path.join(config.DATA_DIR, "_madiref_cache")
 
 PROXY_HEIGHT = 540          # reference does not need more; 20.1 KB/frame here
 JPEG_QUALITY = 85
@@ -51,11 +52,27 @@ QUEUE_HIGH = 48             # pause the decoder above this many pending frames
 QUEUE_LOW = 16              # ...and let it run again below this
 _STALL_MS = 15000           # no frames for this long = a wedged decoder
 
-_FFMPEG_HINTS = (
-    r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-    r"D:\Program Files\ShareX\ffmpeg.exe",
-    r"D:\Program Files\Shutter Encoder\Library\ffmpeg.exe",
-)
+if sys.platform.startswith("win"):
+    _FFMPEG_HINTS = (
+        r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+        r"D:\Program Files\ShareX\ffmpeg.exe",
+        r"D:\Program Files\Shutter Encoder\Library\ffmpeg.exe",
+    )
+elif sys.platform == "darwin":
+    # ⚠ THE HINTS MATTER MORE HERE THAN ON WINDOWS. A macOS app launched from
+    # Finder does NOT inherit the shell's PATH, so `shutil.which` below can
+    # come back empty on a machine where `ffmpeg` works perfectly in a
+    # terminal. These are Homebrew's two prefixes — Apple Silicon, then Intel.
+    _FFMPEG_HINTS = (
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+    )
+else:
+    _FFMPEG_HINTS = (
+        "/usr/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/snap/bin/ffmpeg",
+    )
 
 
 # --------------------------------------------------------------- cache keys
@@ -165,7 +182,7 @@ def purge_stale(max_files=60, max_bytes=None):
 
 
 def find_ffmpeg(explicit=None):
-    """A usable ffmpeg.exe, or None.
+    """A usable ffmpeg binary, or None.
 
     ⚠ Do NOT also look for ffprobe and require it — plenty of builds ship
     without one (ShareX's is configured --disable-ffprobe), and needing it

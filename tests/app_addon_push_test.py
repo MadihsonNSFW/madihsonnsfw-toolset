@@ -248,11 +248,18 @@ _man, _out = _push(_PushBridge(
     record={"ok": True, "state": "installed", "version": "9.9.9",
             "reloaded": False,
             "error": "installed, but the live reload failed"}), _ok_zip)
-ok(_out["reason"] == "addon_restart",
-   "push: an install whose reload failed is not reported as a failed install")
+# ⚠⚠ CHANGED 2026-08-17: this is a SUCCESS now, not a failure with a reason.
+# It used to return `addon_restart` — an `ok: False` — for an install that had
+# worked, which is the same class of lie as "Blender did not come back". The
+# extension is on disk; only the live reload did not finish. The verdict is
+# success and the MESSAGE carries the one thing left to do.
+ok(_out.get("ok") is True and _out.get("reloaded") is False,
+   "⚠ push: an install whose reload failed is a SUCCESS that still needs a "
+   "restart — not a failed install (%r)" % (_out,))
 _man._on_addon(_out)
-ok("restart" in _man.message.lower(),
-   "push: and the fix offered is restarting Blender, which is the actual fix")
+ok("installed" in _man.message.lower() and "restart" in _man.message.lower(),
+   "⚠ push: and it says installed AND names the restart, because Blender is "
+   "still running the old code until then (%r)" % _man.message)
 
 # 4. Nothing recorded at all, but THE BRIDGE KEPT ANSWERING. ⚠ This is NOT a
 # timeout: `seen` is set only by a reply, so a version here proves Blender was
@@ -347,6 +354,56 @@ ok("stopped answering" not in _msg and "restart" not in _msg
    % _man.message)
 
 shutil.rmtree(_ext_root, ignore_errors=True)
+
+
+# ⚠⚠ THE ORDINARY SUCCESSFUL PUSH LEAVES THE BRIDGE DOWN, AND THAT USED TO BE
+# REPORTED AS FAILURE. Installing reloads the extension, which drops the
+# bridge — so every `ping` in the wait loop raises. The loop read the add-on's
+# record ONLY in the branch where the bridge answered, so on the one path that
+# matters it never looked, waited the full `ADDON_WAIT` (90 s in the shipping
+# build) and then failed over an install that had completely succeeded.
+#
+# Marty hit it on 2026-08-17 — *"i can't install ... it doesn't work"* — while
+# the extension was in fact installed and the record on disk said so. Measured
+# after the fix against his live Blender: **1.1 s** instead of 90.
+class _DownBridge(_PushBridge):
+    """Takes the package, then never answers again — a real reload."""
+
+    def __init__(self, record):
+        _PushBridge.__init__(self, [], record=record)
+        self.pings = 0
+
+    def request(self, cmd, **kwargs):
+        self.pings += 1
+        raise RuntimeError("bridge is down (installing)")
+
+
+_down = _DownBridge({"ok": True, "state": "installed", "version": "9.9.9",
+                     "id": "madi_anim_library", "reloaded": True})
+_man, _out = _push(_down, _ok_zip)
+ok(_out.get("ok") is True,
+   "⚠⚠ push: a bridge that never comes back is SUCCESS when the record says "
+   "installed — the add-on's own account outranks a socket (%r)" % (_out,))
+ok(_out.get("from_record") is True,
+   "push: and it is flagged as coming from the record, so the message can say "
+   "the connection returns in a moment rather than claiming it is already back")
+# ⚠ The point is not only the verdict, it is the WAIT. One poll interval is
+# enough to see the record; running to the deadline is the bug.
+ok(_down.pings <= 2,
+   "⚠ push: it stops as soon as the record appears rather than pinging until "
+   "the deadline (pings=%d)" % _down.pings)
+_man._on_addon(_out)
+_msg = _man.message
+ok("installed" in _msg.lower() and "reload" in _msg.lower(),
+   "push: the message says installed AND names the reload (%r)" % _msg)
+
+# ...and a record that says it FAILED still fails, with the add-on's reason.
+_down_bad = _DownBridge({"ok": False, "state": "failed", "version": "9.9.9",
+                         "id": "madi_anim_library", "error": "manifest bad"})
+_man, _out = _push(_down_bad, _ok_zip)
+ok(_out.get("ok") is False and "manifest bad" in (_out.get("detail") or ""),
+   "push: a record that says FAILED is still a failure, with its own reason "
+   "(%r)" % (_out,))
 
 addon_push.ADDON_WAIT = _real_wait
 addon_push.ADDON_POLL_SECONDS = _real_poll

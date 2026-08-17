@@ -160,9 +160,9 @@ class EditStore:
 
     def path(self):
         # Resolved late, and never cached, so a test that redirects
-        # config.APP_DIR gets the redirected path (the same trick the Render
+        # config.DATA_DIR gets the redirected path (the same trick the Render
         # Queue and settings suites use).
-        return self._path or os.path.join(config.APP_DIR, FILE_NAME)
+        return self._path or os.path.join(config.DATA_DIR, FILE_NAME)
 
     def load(self, force=False):
         if self._loaded and not force:

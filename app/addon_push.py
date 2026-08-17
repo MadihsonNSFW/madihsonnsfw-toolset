@@ -396,23 +396,53 @@ class AddonPusher(QObject):
         seen = None
         while time.time() < deadline and not task.cancelled:
             time.sleep(ADDON_POLL_SECONDS)
+
+            # ⚠⚠ **THE RECORD FIRST, AND WITHOUT ASKING THE BRIDGE ANYTHING.**
+            # This used to be read only in the branch where the bridge ANSWERED
+            # on the wrong version — so on the ordinary successful path, where
+            # installing reloads the extension and the bridge is DOWN, the loop
+            # hit `continue` and never looked at the answer already sitting on
+            # disk. The add-on writes it within a second or two; the app then
+            # ignored it for the full 90 s and reported failure over an install
+            # that had completely succeeded.
+            #
+            # Marty hit exactly that on 2026-08-17 ("i can't install... it
+            # doesn't work") while the extension was in fact installed, and it
+            # is the THIRD time a successful push has been reported as a
+            # failure. **The record is the add-on's own account, written after
+            # the work; a socket is a guess about whether Blender is up.**
+            # Prefer the account.
+            record = self._addon_record(target)
+            if record:
+                state = record.get("state")
+                if state == "installed" and record.get("ok"):
+                    # ⚠ `reloaded` is carried, not collapsed. Installed-and-
+                    # reloaded is finished; installed-but-not-reloaded means
+                    # Blender is still RUNNING THE OLD CODE until it restarts.
+                    # Both are successful installs and neither is a failure —
+                    # but only one of them is done, and the message has to say
+                    # which.
+                    return {"ok": True, "addon": target, "from_record": True,
+                            "reloaded": bool(record.get("reloaded"))}
+                if state in ("refused", "failed"):
+                    return {"ok": False, "reason": "addon_refused",
+                            "detail": record.get("error") or "", "seen": seen}
+
             try:
                 # poll=False on purpose: the fail-fast gate silences REPEATING
                 # background polls, and this is a user's action waiting on a
                 # bridge we know is coming back.
                 pong = bridge.request("ping", timeout=3.0)
             except Exception:                               # noqa: BLE001
+                # ⚠ Not a failure, and not free either: a dead localhost port
+                # DROPS the SYN on Windows rather than refusing, so each of
+                # these burns the full 3 s. That is survivable only because the
+                # record above now ends the wait long before the deadline.
                 continue
             if isinstance(pong, dict):
                 seen = pong.get("version") or seen
             if seen == target:
                 return {"ok": True, "addon": target}
-            # It answered, on the wrong version. Either it has not installed
-            # yet, or it never will — and the record on disk knows which.
-            record = self._addon_record(target)
-            if record and record.get("state") in ("refused", "failed"):
-                return {"ok": False, "reason": "addon_refused",
-                        "detail": record.get("error") or "", "seen": seen}
         return self._addon_gave_up(seen, target, package_id)
 
     @staticmethod
@@ -482,7 +512,23 @@ class AddonPusher(QObject):
     def _on_addon(self, result):
         if result.get("ok"):
             self._log("add-on installed: %s" % result.get("addon"))
-            self._set(IDLE, "Blender add-on %s installed." % result.get("addon"))
+            # ⚠ Two true sentences, not one. When the answer came from the
+            # RECORD the bridge has not necessarily come back yet, and saying
+            # "installed" while the status bar still reads disconnected is the
+            # kind of half-truth that sent us looking for a broken installer.
+            # Name the reload so the disconnected second is expected.
+            if result.get("from_record") and not result.get("reloaded"):
+                # Installed, but Blender is still running the old code.
+                self._set(IDLE, "Blender add-on %s installed — restart Blender "
+                                "to finish loading it."
+                          % result.get("addon"))
+            elif result.get("from_record"):
+                self._set(IDLE, "Blender add-on %s installed — Blender is "
+                                "reloading it, so the connection returns in a "
+                                "moment." % result.get("addon"))
+            else:
+                self._set(IDLE,
+                          "Blender add-on %s installed." % result.get("addon"))
             return
         reason = result.get("reason")
         detail = result.get("detail") or ""

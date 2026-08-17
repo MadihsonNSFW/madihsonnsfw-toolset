@@ -107,7 +107,7 @@ def default_bake_dir():
     pattern). ⚠ Anything the app keeps beside the exe must ALSO be in
     make_release.js NEVER_SHIP_DIRS, or a release ships (and an update
     sweeps) the user's baked maps."""
-    return os.path.join(config.APP_DIR, "baked")
+    return os.path.join(config.DATA_DIR, "baked")
 
 
 def sanitize_name(name):

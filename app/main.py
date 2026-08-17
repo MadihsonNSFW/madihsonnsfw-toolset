@@ -43,6 +43,7 @@ import addon_push
 import bridge as bridgemod
 import chrome as chrome_mod
 import config
+import desktop
 import dev_console
 import devedit
 import icons
@@ -57,7 +58,6 @@ import nsfw as nsfwmod
 import optimizer as optimizermod
 import physics as physicsmod
 import picker as pickermod
-import quadify as quadifymod
 import render_presets
 import render_tools
 import rendering as renderingmod
@@ -2323,7 +2323,7 @@ class LibraryView(QWidget):
     def on_apply(self, item, opts):
         if item.type == "playblast":  # disk-only: open in the default player
             try:
-                os.startfile(item.path)
+                desktop.open_path(item.path)
             except OSError as exc:
                 self.window.statusBar().showMessage("Could not open: %s" % exc, 5000)
             return
@@ -2935,7 +2935,7 @@ class LibraryView(QWidget):
                 "No viewport render to watch yet", 4000)
             return
         try:
-            os.startfile(path)
+            desktop.open_path(path)
         except OSError as exc:
             QMessageBox.warning(self, "Watch render", str(exc))
 
@@ -3021,7 +3021,7 @@ class LibraryView(QWidget):
             # records it. Costs a small file write.
             self.window.note_render(r["path"], tell_blender=False)
             try:
-                os.startfile(r["path"])  # default video player
+                desktop.open_path(r["path"])  # default video player
             except OSError:
                 pass
 
@@ -3724,7 +3724,7 @@ class LibraryView(QWidget):
             6000)
 
     def open_in_explorer(self, item):
-        subprocess.Popen(["explorer", "/select,", os.path.normpath(item.path)])
+        desktop.reveal_in_folder(item.path)
 
     def import_flow(self):
         """The ⬇ Import button. No bridge, on purpose: bringing items into a
@@ -4857,12 +4857,6 @@ class MainWindow(QMainWindow):
                       group="Optimize")
         self.optimizer_meshes_tool = optimizermod.MeshesTool(self.bridge, self)
         page.add_tool(self.optimizer_meshes_tool, "Meshes", group="Optimize")
-        # Quad retopology. In the OPTIMIZE group beside the others (Marty,
-        # 2026-08-13 - a separate RETOPOLOGY group was offered and declined),
-        # and paid by construction because this whole tab is. See
-        # docs\quadify.md.
-        self.quadify_tool = quadifymod.QuadifyTool(self.bridge, self)
-        page.add_tool(self.quadify_tool, "Quadify", group="Optimize")
         self.optimizer_restore_tool = optimizermod.RestoreTool(self.bridge, self)
         page.add_tool(self.optimizer_restore_tool, "Restore",
                       group="Maintenance")
@@ -4881,7 +4875,7 @@ class MainWindow(QMainWindow):
         # re-broadcasts, so six open tools still cost one round trip per tick.
         for tool in (self.optimizer_fixed_tool, self.optimizer_meshes_tool,
                      self.optimizer_restore_tool, self.optimizer_memory_tool,
-                     self.optimizer_filesize_tool, self.quadify_tool):
+                     self.optimizer_filesize_tool):
             self.optimizer_adaptive_tool.status_refreshed.connect(
                 tool.apply_status)
         self.optimizer = page
@@ -5088,7 +5082,7 @@ class MainWindow(QMainWindow):
         # happened, so telling it is the only way its Watch button finds it.
         self.note_render(path)
         try:
-            os.startfile(path)   # default video player, like the blocking one
+            desktop.open_path(path)   # default video player, like the blocking one
         except OSError:
             pass
 

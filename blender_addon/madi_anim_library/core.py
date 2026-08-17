@@ -48,7 +48,7 @@ FORMAT_VERSION = 1
 # "rebuilt the exe but forgot to reinstall the add-on" confusion.
 # MUST match blender_manifest.toml's `version`; tests\bridge_version_test.py
 # asserts that, and app\bridge.py carries the version the app expects.
-ADDON_VERSION = "0.47.0"
+ADDON_VERSION = "0.48.0"
 
 _INVALID_FS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 

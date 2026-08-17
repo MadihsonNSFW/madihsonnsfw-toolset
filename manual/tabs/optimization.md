@@ -33,40 +33,6 @@ A wall at the back of the shot does not need a 4K map.
 
 A managed Decimate on distant meshes, with the ratio driven by camera distance.
 
-## Quadify
-
-Pick a mesh, press **Retopologize**, and get all-quad topology back — the kind
-you can animate, subdivide and sculpt on.
-
-- **It shows you what it made**: faces before and after, how many are quads, how
-  long it took, and it names anything that is not a quad rather than quietly
-  rounding to "done".
-- **Density, sharp edges and symmetry** — set how big the quads should be, let
-  it find hard edges by angle, and mirror on X, Y or Z. The half you keep is
-  remeshed and a Mirror modifier rebuilds the rest.
-- **Your original is kept and hidden**, unless you choose to replace it.
-- **Blender stays usable while it runs** — the remeshing happens outside
-  Blender's main thread. Big meshes take minutes and take them in the background.
-- **You can stop it.** Cancel ends the run cleanly, leaving your scene exactly as
-  it was.
-- **It tells you the real size of the job first** — the count shown is what the
-  engine actually receives, with your modifiers applied, not the face count in
-  the file, which can be a hundred times smaller.
-
-!!! warning "UVs, vertex groups and materials are not carried over yet"
-    The result is clean geometry. The tool says so in the panel.
-
-!!! tip "On a rough, organic mesh, turn off Detect under Sharp edges"
-    A crusty or noisy surface reads as a hard edge almost everywhere, and the
-    engine then has to fit its quads around every one — the difference between
-    seconds and a very long wait.
-
-!!! info "The remeshing engine is third-party"
-    Quadify does not implement the remeshing maths. It prepares your mesh, runs
-    the **QuadWild-BiMDF** programs (GPL-3.0, SIGGRAPH 2021/2023) as a separate
-    process, and reads the result back. Running it out of process is also why a
-    mesh the engine cannot handle can no longer take Blender down with it.
-
 ## Restore
 
 Put every original back.

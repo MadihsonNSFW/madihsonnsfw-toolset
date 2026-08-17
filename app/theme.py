@@ -156,7 +156,11 @@ def _write_indicator_svgs():
             'stroke-width="2.2" stroke-linecap="round" '
             'stroke-linejoin="round"/></svg>')
     wanted = (("check.svg", "#ffffff"), ("check_dim.svg", TEXT_DIM))
-    for folder in (os.path.join(config.APP_DIR, "assets"),
+    # ⚠ DATA_DIR, NOT APP_DIR. These SVGs are GENERATED, so this is a
+    # write - and on macOS APP_DIR is inside the .app bundle, where
+    # writing breaks the signature. On Windows and Linux the two are the
+    # same folder, so nothing moves.
+    for folder in (os.path.join(config.DATA_DIR, "assets"),
                    os.path.join(tempfile.gettempdir(),
                                 "MadihsonNSFW Toolset")):
         try:
@@ -179,7 +183,8 @@ def _write_indicator_svgs():
             continue
     # Nowhere writable: the url() will point at a missing file and Qt just
     # paints the plain square — the pre-2026-08-06 look, never a crash.
-    return [os.path.join(config.APP_DIR, "assets", n) for n, _c in wanted]
+    return [os.path.join(config.DATA_DIR, "assets", n)
+            for n, _c in wanted]
 
 
 CHECK_SVG, CHECK_DIM_SVG = _write_indicator_svgs()
@@ -409,6 +414,26 @@ QTreeWidget::item:selected, QListWidget::item:selected {{
     background: {PANEL2}; border: 1px solid {ACCENT};
 }}
 QTreeWidget::item:hover {{ background: {PANEL2}; }}
+
+/* The tool rail inside a RenderingPage (Rendering, Node Setup, Anim Layers,
+   Physics). A single-column tree stretches its last section, so a row's rect
+   is the FULL viewport width — the selected row's 1 px accent outline landed
+   on the very last pixel column of the rail and read as a cut-off box (Marty,
+   2026-08-16). This insets the rows so the outline closes inside the panel.
+
+   ⚠ PAD THE TREE, NEVER MARGIN THE ROWS. A margin on `::item` insets the row
+   the same way, but it also stops the row's background covering the full
+   width — and the indent Qt draws to the left of each tool is the BRANCH
+   column, which the native Windows style fills on the current row IN THE
+   USER'S OWN SYSTEM ACCENT COLOUR. Margin the row and a stray coloured tab
+   appears beside the selected tool (measured: a coral 2x6 bar, from Marty's
+   Windows accent). `::branch` QSS does not suppress it — background,
+   border-image, image, every :has-children state, all ignored — and neither
+   does overriding `drawBranches`; the fill comes from the row. Padding the
+   viewport moves the whole row instead, so it still covers its own branch.
+   ⚠ Not on the shared `QTreeWidget` rule either: the data trees (markers,
+   presets, the optimizer report) are multi-column and this is a rail. */
+QTreeWidget#toolrail {{ padding: 2px 4px; }}
 QListWidget::item {{ border-radius: 6px; border: 1px solid transparent; padding: 2px; }}
 QListWidget::item:hover {{ background: {PANEL2}; }}
 

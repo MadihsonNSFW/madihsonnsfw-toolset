@@ -1070,6 +1070,66 @@ ok(len(_w._pages()) == _w.tabs.count() + len(_w.FREE_TOOLS),
    % (_w.tabs.count(), len(_w.FREE_TOOLS), len(_w._pages())))
 ok(_w.physics.rail.topLevelItem(0).text(0) == "BONES",
    "tabs: the Physics rail lists BONES — a live page, not a stub")
+
+# ⚠ NOTHING IN A SCROLLED TOOL MAY SIT FLUSH AGAINST ITS OWN SCROLLBAR (Marty,
+# 2026-08-16: "feels like buttons got cut off"). `widgetResizable` makes the
+# tool EXACTLY viewport-wide and nearly every tool zeroes its own layout
+# margins, so Anim Layers' Load and Share Keys were drawn with their right
+# border on the viewport's LAST pixel column — measured 894 of a 895 px
+# viewport, touching a scrollbar handle painted in the same colour as a button
+# border. Nothing was clipped; it just READ as clipped, which is the same bug
+# as far as the person using it is concerned.
+#
+# ⚠ Asserted over EVERY tool on every LAYOUT A tab, through the real `add_tool`
+# path and on the window that has its lazy tabs built — the gutter belongs to
+# the shell, not to the one tool that happened to notice, and a tool that sets
+# its own margins after being added is exactly what this would catch.
+_flush = []
+_gutted = 0
+for _tp in _w.findChildren(renderingmod.ToolPage):
+    _area = _tp.findChild(QScrollArea)
+    if _area is None or _area.widget() is None:
+        continue
+    _tl = _area.widget().layout()
+    if _tl is None:
+        continue
+    _gutted += 1
+    if _tl.contentsMargins().right() < renderingmod.ToolPage.GUTTER:
+        _flush.append((type(_area.widget()).__name__,
+                       _tl.contentsMargins().right()))
+ok(_gutted >= 10 and not _flush,
+   "layout: all %d scrolled tools keep a %d px gutter off the scrollbar — a "
+   "button on the right of a row never touches it (flush: %r)"
+   % (_gutted, renderingmod.ToolPage.GUTTER, _flush))
+
+# The same edge, one panel to the left: a LAYOUT A tool rail is a single-column
+# tree, so it stretches its one section to the full viewport and the selected
+# row's accent outline landed on the rail's last pixel column — measured, the
+# right-hand border was not drawn AT ALL, which is what Marty circled.
+#
+# ⚠ ASSERTED ON THE VIEWPORT, NOT ON PAINTED PIXELS, and that is the point. The
+# fix has to stay `QTreeWidget#toolrail { padding }` — insetting the ROWS
+# instead (`::item` margin) looks identical here but stops each row covering
+# the branch column Qt draws for the indent, and the native Windows style
+# fills that column ON THE CURRENT ROW IN THE USER'S OWN SYSTEM ACCENT COLOUR:
+# a stray coloured tab appears next to the open tool, which no `::branch` rule
+# and no `drawBranches` override suppresses (all tried). Padding shrinks the
+# viewport; a row margin does not — so this check fails on that swap.
+#
+# ⚠ `ensurePolished()` FIRST. This window is never shown, and an unpolished
+# widget has not had the application stylesheet applied to it yet — it reports
+# the bare default frame of 1 px and the check reads as failing on correct
+# code.
+_railed = []
+for _rp in (_w.rendering, _w.node_setup, _w.anim_layers, _w.physics):
+    _r = _rp.rail
+    _r.ensurePolished()
+    if _r.objectName() != "toolrail" or _r.frameWidth() < 3:
+        _railed.append((type(_rp).__name__, _r.objectName(), _r.frameWidth()))
+ok(not _railed,
+   "layout: every tool rail insets its rows from both edges, so the selected "
+   "tool's outline closes inside the panel (flush: %r)" % (_railed,))
+
 _w.save_settings()
 ok(True, "tabs: save_settings() survives with every tab built")
 
@@ -1080,7 +1140,7 @@ ok(_dead.feature_reason("anything") is None,
    "dead bridge: reports features as available, so tools look normal")
 ok(_dead.capabilities == [] and _dead.addon_version is None,
    "dead bridge: capabilities is a LIST, not a failure dict")
-ok(_dead.request("quad_status")["ok"] is False,
+ok(_dead.request("opt_status")["ok"] is False,
    "dead bridge: every command fails instantly")
 ok(_dead.anything_written_later()["ok"] is False,
    "dead bridge: including helpers that do not exist yet")

@@ -31,9 +31,9 @@ def build_zip():
 
     ⚠ **THIS WALKS THE FOLDER. It used to be `os.listdir(...)` filtered to
     `.py`**, which meant a subdirectory was invisible to it - and on 2026-08-13
-    that silently shipped a Quadify add-on with **no engine in it**: 19 files
-    where there should have been 47, an install that would have reported
-    "engine missing" on a machine that had never seen the source. Same lesson
+    that silently shipped an add-on with **a whole subfolder missing**: 19 files
+    where there should have been 47, and the install would have reported the
+    dependency absent on a machine that had never seen the source. Same lesson
     the release bundler learned twice. **Never enumerate what you can walk.**
     """
     names = []

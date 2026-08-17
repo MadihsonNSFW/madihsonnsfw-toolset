@@ -51,6 +51,7 @@ class ToolPage(QWidget):
             area = QScrollArea()
             area.setWidgetResizable(True)
             area.setFrameShape(QFrame.NoFrame)
+            self._gutter(widget)
             area.setWidget(widget)
             # ⚠⚠ A SCROLL AREA DOES NOT ABSORB ITS CHILD'S MINIMUM ON ITS OWN.
             # With `widgetResizable`, QScrollArea folds the widget's
@@ -74,6 +75,34 @@ class ToolPage(QWidget):
             # keeps working and the chrome squeezes.
             widget.setMinimumWidth(min(260, widget.minimumSizeHint().width()))
             lay.addWidget(widget, 1)
+
+    # gap between the last widget on a row and the vertical scrollbar
+    GUTTER = 8
+
+    @classmethod
+    def _gutter(cls, widget):
+        """Keep the scrolled tool clear of its own scrollbar.
+
+        ⚠ `widgetResizable` makes the tool EXACTLY viewport-wide, and nearly
+        every tool zeroes its own layout margins — so a widget on the right of
+        a row gets drawn with not one pixel between it and the scrollbar.
+        Nothing is clipped (measured: right edge == viewport width), but a
+        button touching a scrollbar READS as a cut-off button, which is how
+        Marty reported it (2026-08-16: "feels like buttons got cut off") for
+        Anim Layers' Load and Share Keys.
+
+        Widening the tool's own right margin rather than wrapping it in a
+        spacer keeps `area.widget()` the tool itself, which the rest of the
+        shell and the suites reach through. Only ever widens: a tool that
+        already asked for more right margin than this keeps it.
+        """
+        lay = widget.layout()
+        if lay is None:
+            return
+        m = lay.contentsMargins()
+        if m.right() >= cls.GUTTER:
+            return
+        lay.setContentsMargins(m.left(), m.top(), cls.GUTTER, m.bottom())
 
 
 class RenderingPage(QWidget):
@@ -101,6 +130,14 @@ class RenderingPage(QWidget):
         split = QSplitter(Qt.Horizontal)
 
         self.rail = QTreeWidget()
+        # Named so the stylesheet can inset its rows without touching every
+        # other QTreeWidget — the data trees (markers, presets, the optimizer
+        # report) are multi-column, where the same rule would open a gap
+        # between every pair of columns. ⚠ The inset is PADDING ON THE TREE,
+        # never a margin on the rows: `#toolrail` in theme.py measured what a
+        # row margin costs (Qt fills the branch column of the current row in
+        # the user's own Windows accent colour).
+        self.rail.setObjectName("toolrail")
         self.rail.setHeaderHidden(True)
         self.rail.setIndentation(10)
         self.rail.setRootIsDecorated(False)

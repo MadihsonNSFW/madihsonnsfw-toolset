@@ -14,6 +14,7 @@
 *.blend1 binary
 *.zip binary
 *.ico binary
+*.icns binary
 *.png binary
 *.jpg binary
 *.mp4 binary

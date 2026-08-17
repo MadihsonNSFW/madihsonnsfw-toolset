@@ -49,7 +49,7 @@ _SAFE = re.compile(r"[^A-Za-z0-9 _.-]+")
 
 
 def presets_dir():
-    return os.path.join(config.APP_DIR, DIRNAME)
+    return os.path.join(config.DATA_DIR, DIRNAME)
 
 
 def _slug(name):

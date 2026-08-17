@@ -11,6 +11,7 @@
 # and still does the work; the bridge commands are how it is reached.
 
 import os
+import sys
 
 import bpy
 from bpy.types import AddonPreferences, Operator, Panel
@@ -205,7 +206,13 @@ class MADILIB_OT_open_app(Operator):
     # Set only when the file browser was used, so a normal launch never writes
     # over a path that is already good.
     filepath: StringProperty(subtype='FILE_PATH', options={'SKIP_SAVE'})
-    filter_glob: StringProperty(default="*.exe;*.bat", options={'HIDDEN'})
+    # ⚠ PLATFORM-DEPENDENT, or the filter hides the file it is asking for.
+    # Off Windows the app binary has NO extension — on macOS it is the real
+    # file inside `…Toolset.app/Contents/MacOS/`, since a `.app` is a folder
+    # and would fail the `isfile` check below — so filter nothing there.
+    filter_glob: StringProperty(
+        default="*.exe;*.bat" if sys.platform.startswith("win") else "*",
+        options={'HIDDEN'})
 
     def invoke(self, context, event):
         if os.path.isfile(_app_path()):

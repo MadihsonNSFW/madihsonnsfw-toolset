@@ -26,6 +26,10 @@ import config  # noqa: E402
 # `libraries` says, and the default is Marty's REAL library.
 TMP = tempfile.mkdtemp(prefix="madi_animopt_")
 config.APP_DIR = TMP
+# DATA_DIR is the WRITABLE root (macOS splits it off APP_DIR); the
+# caches, queues and presets read it, so redirecting only APP_DIR
+# would build them in the real dist folder.
+config.DATA_DIR = TMP
 config.CONFIG_PATH = os.path.join(TMP, "config.json")
 
 # ⚠ A DEAD PORT, DELIBERATELY. With no config file the DEFAULTS apply, and the

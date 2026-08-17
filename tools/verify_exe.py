@@ -32,8 +32,28 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXE = os.path.join(ROOT, "app", "dist", "MadihsonNSFW Toolset",
-                   "MadihsonNSFW Toolset.exe")
+_DIST = os.path.join(ROOT, "app", "dist")
+_NAME = "MadihsonNSFW Toolset"
+
+# ⚠ THE BUILD IS IN A DIFFERENT PLACE ON EACH PLATFORM, and the native library
+# beside it has a different suffix. Getting this wrong does not fail loudly —
+# the walk simply finds nothing and every marker "passes" against an empty
+# archive, which is the worst possible outcome for a verifier. `main()` refuses
+# outright when the binary is missing, so a wrong path is a stop, not a pass.
+if sys.platform == "darwin":
+    # `--windowed` produces a .app BUNDLE; the onedir folder beside it is
+    # scaffolding. Everything ships inside Contents/.
+    EXE = os.path.join(_DIST, _NAME + ".app", "Contents", "MacOS", _NAME)
+    INTERNAL = os.path.join(_DIST, _NAME + ".app", "Contents", "Frameworks")
+    NATIVE_SUFFIX = ".so"
+elif sys.platform.startswith("win"):
+    EXE = os.path.join(_DIST, _NAME, _NAME + ".exe")
+    INTERNAL = os.path.join(_DIST, _NAME, "_internal")
+    NATIVE_SUFFIX = ".pyd"
+else:
+    EXE = os.path.join(_DIST, _NAME, _NAME)
+    INTERNAL = os.path.join(_DIST, _NAME, "_internal")
+    NATIVE_SUFFIX = ".so"
 
 # (module, marker, must_be_present)
 MARKERS = [
@@ -315,7 +335,7 @@ MARKERS = [
     # the UTF-8 BOM on its manifest, which Blender REFUSES while
     # `package_install_files` still returns {'FINISHED'} — a build carrying
     # that hash ships an add-on nobody can install and nothing reports it.
-    ("addon_bundle", "b5915f2a7ecb1a47", True),
+    ("addon_bundle", "10fd4f45dc7bb4a2", True),
     ("addon_bundle", "15758d6b33ae5f84", False),
     # --- 2026-08-07, all of Blender's bake options + a sample count -------
     ("bridge", "0.25.0", True),
@@ -448,7 +468,7 @@ MARKERS = [
     # ⚠ A VERSION-STRING MARKER DIES WHEN THE VERSION MOVES — fourth time.
     # This is EXPECTED_ADDON_VERSION; validate it against source before every
     # build rather than discovering it after a four-minute one.
-    ("bridge", "0.47.0", True),
+    ("bridge", "0.48.0", True),
     # --- THE RESKIN + the update-install fix (1.17.0) ----------------------
     # ⚠ The lesson Quadify taught, applied on the way in this time: a new
     # module with NO markers can be missing from a build and only fail when
@@ -468,13 +488,22 @@ MARKERS = [
     ("chrome", "THE NATIVE FRAME IS NOT REMOVED", True),
     ("chrome", "HAS TO BE ANSWERED TOO", True),
     ("chrome", "Restore down", True),
-    # --- Quadify (1.15.0) and the add-on-install hardening (1.15.1) --------
-    # ⚠ Quadify shipped with NO markers at all, so a build could carry the tab
-    # with the module missing and only fail when the button was pressed. All
-    # four are string CONSTANTS validated against source, not comments.
-    ("quadify", "Retopologising", True),
-    ("quadify", "quad_progress", True),
-    ("optimizer", "quad_progress", True),
+    # --- Quadify REMOVED 2026-08-17 (Marty: "wipe qadify FULLY from our
+    # app"). ⚠⚠ ABSENCE markers, not deletions. A build made from pre-removal
+    # source starts perfectly, shows a Quadify tool, and ships 5.4 MB of
+    # Windows-only binaries inside its add-on zip - nothing about it looks
+    # wrong. These are the only things that would catch it.
+    ("bridge", "quad_status", False),
+    ("main", "QuadifyTool", False),
+    # --- the cross-platform port (1.20.0) ---------------------------------
+    # ⚠⚠ A BUILD FROM PRE-PORT SOURCE IS PERFECT ON WINDOWS AND
+    # BROKEN ONLY WHERE NOBODY HERE CAN RUN IT. `DATA_DIR` is what keeps the
+    # macOS build from writing inside its own .app bundle, and `os.startfile`
+    # does not exist off Windows - it raises AttributeError, which the callers'
+    # `except OSError` does not catch. Present-and-absent, one each.
+    ("config", "DATA_DIR", True),
+    ("desktop", "reveal_command", True),
+    ("main", "os.startfile", False),
     # The four locks that make a refused add-on package impossible to ship
     # silently. A stale build without them is the failure this all came from.
     ("bridge", "addon_update_result", True),
@@ -685,11 +714,10 @@ def main():
     # report this itself: the exit code is its only channel and that is wired
     # to the updater's keep/roll-back decision. So it is checked from out here.
     pyz_names = [n for n in pyz.toc if "zstandard" in n]
-    internal = os.path.join(os.path.dirname(EXE), "_internal")
     pyds = []
-    for base, _dirs, files in os.walk(internal):
+    for base, _dirs, files in os.walk(INTERNAL):
         for name in files:
-            if name.endswith(".pyd") and (
+            if name.endswith(NATIVE_SUFFIX) and (
                     "zstandard" in name.lower() or
                     "zstandard" in base.lower()):
                 pyds.append(name)

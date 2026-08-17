@@ -50,7 +50,7 @@ from PySide6.QtGui import QColor, QPainter, QPen
 
 import config
 
-NOTES_ROOT = os.path.join(config.APP_DIR, "_madiref_notes")
+NOTES_ROOT = os.path.join(config.DATA_DIR, "_madiref_notes")
 
 FORMAT_VERSION = 1
 

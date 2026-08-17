@@ -27,7 +27,7 @@ thing that makes one customer's updater refuse a perfectly good build.
 
 # First versioned release. The app was shipping long before it had a number;
 # 1.0.0 is where the counting starts rather than a claim about maturity.
-APP_VERSION = "1.19.0"
+APP_VERSION = "1.20.0"
 
 # ---------------------------------------------------------------- identity
 # Where the app says it came from and where to go for help. Kept HERE, in the

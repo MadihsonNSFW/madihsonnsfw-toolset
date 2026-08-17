@@ -247,27 +247,6 @@ class BridgeServer:
             except Exception as exc:            # noqa: BLE001
                 return {"ok": False, "error": str(exc)}
 
-        # Quadify's run holds the main thread the same way, and for longer — a
-        # retopo is seconds to minutes. Same contract, same reasons, and
-        # `quadify.quad_progress` carries the same NO-bpy warning.
-        if request.get("cmd") == "quad_progress":
-            try:
-                from . import quadify
-                return {"ok": True, "result": quadify.quad_progress()}
-            except Exception as exc:            # noqa: BLE001
-                return {"ok": False, "error": str(exc)}
-
-        # ⚠ CANCEL MUST BYPASS THE QUEUE TOO, and it is the clearest case of
-        # all: the whole point is to stop something that is running, and a
-        # cancel that waits its turn behind the run is not a cancel. It kills
-        # the engine's own process and touches no bpy.
-        if request.get("cmd") == "quad_cancel":
-            try:
-                from . import quadify
-                return {"ok": True, "result": quadify.quad_cancel()}
-            except Exception as exc:            # noqa: BLE001
-                return {"ok": False, "error": str(exc)}
-
         done = threading.Event()
         holder = {}
         # Stamp BEFORE queueing (this is a client thread; a float write is
@@ -756,43 +735,13 @@ class BridgeServer:
             from . import picker
             return picker.picker_apply_item(p["path"],
                                             replace=p.get("replace", True))
-        # --- Scene Optimizer and Quadify. ⚠ Their opt_* and quad_* prefix
-        # gates were REMOVED 2026-08-14 (all tabs free; the paid thing is
-        # premium packs, gated in the app's licence server). Their exemption
-        # lists are the pattern to copy if a prefix gate ever returns:
-        # opt_status / opt_progress / opt_revert_images / opt_revert_meshes /
-        # opt_clear_cache and quad_status / quad_progress / quad_cancel —
+        # --- Scene Optimizer. ⚠ Its opt_* prefix gate was REMOVED
+        # 2026-08-14 (all tabs free; the paid thing is premium packs).
+        # The exemption list is the pattern to copy if a prefix gate ever
+        # returns: opt_status / opt_progress / opt_revert_images /
+        # opt_revert_meshes / opt_clear_cache —
         # "reporting, undoing and STOPPING our own work must never be what a
         # lapsed licence takes away" (docs\licensing.md).
-        if cmd == "quad_status":
-            from . import quadify
-            return quadify.quad_status(deep=bool(p.get("deep")))
-        # ⚠ Same two-route arrangement as opt_progress: THIS is the route
-        # `capabilities()` can see, the live one is the bypass in `_dispatch`.
-        if cmd == "quad_progress":
-            from . import quadify
-            return quadify.quad_progress()
-        if cmd == "quad_cancel":
-            from . import quadify
-            return quadify.quad_cancel()
-        if cmd == "quad_result":
-            from . import quadify
-            return quadify.quad_result()
-        if cmd == "quad_select":
-            from . import quadify
-            return quadify.quad_select(p.get("object") or "")
-        if cmd == "quad_retopologize":
-            from . import quadify
-            return quadify.retopologize(
-                object_name=p.get("object"), density=p.get("density", 1.0),
-                sharp_angle=p.get("sharp_angle", 35.0),
-                use_sharp=p.get("use_sharp", True),
-                preprocess=p.get("preprocess", True),
-                smoothing=p.get("smoothing", True),
-                symmetry=p.get("symmetry", ""),
-                symmetry_offset=p.get("symmetry_offset", 0.0),
-                replace=p.get("replace", False),
-                settings=p.get("settings") or {})
         if cmd == "opt_status":
             from . import optimizer
             return optimizer.opt_status()

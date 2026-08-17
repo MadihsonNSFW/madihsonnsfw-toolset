@@ -116,10 +116,3 @@ them is what keeps a mismatched pair from misbehaving quietly.
 
 The Blender half imports `bpy` and needs a GPL-compatible licence regardless;
 one licence for the whole repository keeps it simple.
-
-### Third-party components
-
-The Quadify tool runs **QuadWild-BiMDF** (GPL-3.0) as a subprocess. Its binaries
-are redistributed in `blender_addon/madi_anim_library/engine/` — see
-[ATTRIBUTION.md](blender_addon/madi_anim_library/engine/ATTRIBUTION.md) for the
-upstream project, version and licence. The remeshing maths is theirs, not ours.

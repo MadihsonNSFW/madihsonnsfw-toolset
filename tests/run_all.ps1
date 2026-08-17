@@ -11,6 +11,14 @@
 # ASCII only (PS 5.1 reads .ps1 as ANSI - a UTF-8 dash kills the script).
 
 $ErrorActionPreference = "Continue"
+
+# WARNING: the suites print ASCII-art warning signs in their labels, and Python
+# picks its stdout encoding from the LOCALE the moment stdout is not a console.
+# Redirect this script to a file and every label carrying one dies with a
+# UnicodeEncodeError - on 2026-08-16 that turned 17 healthy suites into
+# "no summary - suite crashed" in a captured run, which is indistinguishable
+# from the real thing. Pin it, so a captured run says what a console run says.
+$env:PYTHONIOENCODING = "utf-8"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = Split-Path -Parent $here
 
@@ -109,13 +117,7 @@ $blenderSuites = @(
     # abuse defences (2026-08-06): the cross-protocol hole that let a WEB PAGE
     # drive the bridge, the addon_update token, and the jiggle cache that used
     # to unpickle files sitting next to a downloaded .blend
-    "bridge_security_test.py",
-    # Quadify: the pipeline end to end on Suzanne through the REAL engine, the
-    # evaluated triangle count (the label that read 2,424 for a 266,469-tri
-    # job), the progress record's shape, the socket-thread routing for
-    # progress/cancel, and the proof that Blender's main thread stays free
-    # during a run. Roughly half a minute - it runs the engine twice.
-    "quadify_test.py"
+    "bridge_security_test.py"
 )
 $appSuites = @(
     "al_app_test10.py", "al_app_test15.py", "al_app_layout.py",
@@ -138,6 +140,11 @@ $appSuites = @(
     # decides whether the window buttons get their clicks, the rail header
     # not becoming the window's minimum width, and the fallback
     "app_chrome_test.py",
+    # the cross-platform port (2026-08-16, PORT_PLAN.md). Runs win32/darwin/
+    # linux through every platform decision with sys.platform faked, because
+    # there is no Mac and no Linux box in this project - until the CI matrix
+    # lands, this suite IS the port's coverage
+    "app_platform_test.py",
     # performance ceilings (2026-08-15, PERF_PLAN.md). Asserts on WORK DONE -
     # widgets built, event-filter calls, full-item reads, modules imported -
     # never on wall-clock time, which is not comparable between machines
@@ -161,10 +168,11 @@ $appSuites = @(
     # silently - the ring layout duplicated in the add-on, and the gate that
     # keeps an older add-on from breaking the tab
     "app_madiref_test.py",
-    # licensing: Ed25519 verify (RFC vectors), fingerprint, DPAPI storage,
-    # the state machine, and the four gated tabs locking / unlocking live
-    # self-update: version comparison (which IS the anti-rollback rule, since a
-    # manifest served from disk has no nonce), the signed manifest and the swap
+    # add-on push (all that survived the 1.19.0 removals): finding every
+    # Blender config root, reading the bundled add-on's version out of the
+    # packed bytes, the hand-off to Blender and its give-up path - plus the
+    # two absence rules, that the packed add-on carries no entitlement module
+    # and routes no license_ command
     "app_addon_push_test.py",
     # Bone picker tab: the poll, the list-rebuild echo guard, retargeting bones
     # / group members / shape keys, the debounce, the capability gate
@@ -180,10 +188,6 @@ $appSuites = @(
     # the lock preview builds), the confirmation before a long run, which
     # targets each tool offers, and the capability gate
     "app_optimizer_test.py",
-    # Quadify's control: what a run sends, the evaluated count on the label,
-    # the report painted ONLY from the reply, and the check that fails if the
-    # run is ever re-wrapped in begin_capture (which greys the whole app).
-    "app_quadify_test.py",
     # Blend file size: the .blend block reader against two REAL files (the same
     # scene saved compressed and not), the exact-total invariant that is the
     # only guard against a mis-read block header, and the tree window
@@ -298,6 +302,22 @@ $env:LOCALAPPDATA = $realLocalAppData
 Write-Host ""
 Write-Host "=== App-side (offscreen Qt, stub bridge) ==="
 $env:QT_QPA_PLATFORM = "offscreen"
+
+# NO SUITE MAY WRITE THE REAL app\config.json. On 2026-08-17 one did:
+# app_madiref_test.py was the only app suite that never redirected CONFIG_PATH,
+# and madiref\tab.py calls config.save() to remember the last clip - so every
+# run replaced Marty's config with an empty object.
+# It hid for a long time because FROM SOURCE the damage is invisible:
+# config.load() merges DEFAULTS and the default library from source is the
+# repo's own library\, which exists and is full. Only a FROZEN build shows it
+# (its default is dist\library, which does not exist) and it reads as an empty
+# Studio Library. This snapshot is the guard that does not rely on anyone
+# remembering the rule.
+$realConfig = Join-Path $root "app\config.json"
+$configBefore = ""
+if (Test-Path $realConfig) {
+    $configBefore = (Get-FileHash $realConfig -Algorithm SHA256).Hash
+}
 foreach ($s in $appSuites) {
     $path = Join-Path $here $s
     if (-not (Test-Path $path)) { Write-Host "SKIP $s (missing)"; continue }
@@ -313,11 +333,25 @@ $smoke = $LASTEXITCODE
 Pop-Location
 Write-Host "main.py --smoke exit $smoke"
 
+$configAfter = ""
+if (Test-Path $realConfig) {
+    $configAfter = (Get-FileHash $realConfig -Algorithm SHA256).Hash
+}
+$configTouched = ($configBefore -ne $configAfter)
+if ($configTouched) {
+    Write-Host ""
+    Write-Host "FAIL a suite WROTE THE REAL app\config.json (see the note above"
+    Write-Host "     the app-side loop). Every suite must point"
+    Write-Host "     config.CONFIG_PATH and config.DATA_DIR at a temp dir"
+    Write-Host "     BEFORE importing anything that can save."
+}
+
 Write-Host ""
 Write-Host ("TOTAL: {0} passed, {1} failed" -f $totalPass, $totalFail)
 if ($failed.Count -gt 0) {
     Write-Host ("Suites with failures: " + ($failed -join ", "))
     exit 1
 }
+if ($configTouched) { exit 1 }
 if ($smoke -ne 0) { Write-Host "smoke failed"; exit 1 }
 exit 0

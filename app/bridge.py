@@ -102,7 +102,7 @@ UNREACHABLE_BACKOFF = 30.0
 # update_bridge_status warns when they differ, which catches the "rebuilt the
 # exe but forgot to reinstall the extension" case (and the reverse). Bump it
 # together with blender_manifest.toml whenever new commands land.
-EXPECTED_ADDON_VERSION = "0.47.0"
+EXPECTED_ADDON_VERSION = "0.48.0"
 
 # ---------------------------------------------------------------------------
 # Update safety: a version gap must DEGRADE, never break.
@@ -269,14 +269,6 @@ FEATURE_REQUIREMENTS = {
         "marker_list", "0.40.0",
         "Timeline markers need Blender add-on 0.40.0 or newer — update the "
         "extension from ⚙ Library Settings to use this tool."),
-    # ⚠ Gated on `quad_status`, NOT on `quad_retopologize`: the status command
-    # is what tells the tool whether the ENGINE is present, and an add-on new
-    # enough to answer it can always say "no engine" for itself. Gating on the
-    # run command would leave the tool looking available right up to the button.
-    "quadify": (
-        "quad_status", "0.44.0",
-        "Quadify needs Blender add-on 0.44.0 or newer — update the extension "
-        "from ⚙ Library Settings to use this tool."),
 }
 
 # Commands introduced after the app's baseline: the only ones a capability
@@ -1158,45 +1150,6 @@ class Bridge:
         this one blocks, something is wrong, and waiting is pointless.
         """
         return self.request("opt_progress", timeout=5.0, poll=poll)
-
-    def quad_status(self, poll=False, deep=False):
-        """PURE READ: is the engine there, and what is selected.
-
-        ⚠ `deep=True` evaluates the mesh to report the triangle count the
-        engine will REALLY get. Use it when the tool is shown, never on a
-        timer — and never show the shallow count as if it were the job size."""
-        return self.request("quad_status", {"deep": bool(deep)},
-                            timeout=30.0, poll=poll)
-
-    def quad_progress(self, poll=False):
-        """Which stage the retopo is on. Answered while Blender is busy, the
-        same way `opt_progress` is and for the same reason — see there."""
-        return self.request("quad_progress", timeout=5.0, poll=poll)
-
-    def quad_select(self, name):
-        """Select the retopologised object in Blender and make it active."""
-        return self.request("quad_select", {"object": name}, timeout=10.0)
-
-    def quad_retopologize(self, params):
-        """START a retopology. ⚠ **RETURNS IMMEDIATELY** — it hands back as
-        soon as the mesh is on disk, then the add-on works on its own thread
-        and the caller polls `quad_progress`.
-
-        ⚠ The short timeout is deliberate and is the fix for a real failure: a
-        blocking version with a 30-minute timeout gave up on a 52-minute job
-        while Blender carried on working invisibly behind it. Nothing here may
-        go back to waiting for the run."""
-        return self.request("quad_retopologize", params, timeout=60.0)
-
-    def quad_cancel(self):
-        """Stop the run in flight. Answered off the main thread, like
-        `quad_progress` — a cancel that queues behind the work it is
-        cancelling is not a cancel."""
-        return self.request("quad_cancel", timeout=10.0)
-
-    def quad_result(self, poll=False):
-        """The finished run's report, once `quad_progress` goes inactive."""
-        return self.request("quad_result", timeout=15.0, poll=poll)
 
     def opt_plan(self, params):
         """What a run WOULD do. Reads every texture header, so not instant."""

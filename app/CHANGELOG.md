@@ -125,8 +125,8 @@ removed on Blender's side.
 - **All four paid tabs are now free for everyone.** MadiRef, Optimization,
   NSFW Tools and Physics no longer need a licence — no gold stars, no lock
   screens, no signing in. Everything the Toolset does is open.
-- **Inside Blender too.** The bridge no longer refuses MadiRef, Scene
-  Optimizer or Quadify commands without a licence, and the Optimization
+- **Inside Blender too.** The bridge no longer refuses MadiRef or Scene
+  Optimizer commands without a licence, and the Optimization
   viewport preview works for everyone. Update the add-on when the app offers
   it, or the old locks stay behind in Blender.
 - **Your key still matters.** Premium pose and animation packs are coming in
@@ -147,42 +147,6 @@ removed on Blender's side.
   but Blender's bridge does not reconnect on its own, the app says so and
   tells you to press Start in Blender's sidebar — rather than suggesting the
   update failed, which it had not.
-
-### 1.15.0 — Quadify: turn a mesh into clean quads
-
-- **A new Quadify tool** in the Optimization tab. Pick a mesh, press
-  Retopologize, and get all-quad topology back — the kind you can actually
-  animate, subdivide and sculpt on.
-- **It shows you what it made.** The panel on the right reports the real
-  numbers off the mesh that came back: faces before and after, how many of
-  them are quads, how long it took, and it names anything that is not a quad
-  rather than quietly rounding to "done".
-- **Density, sharp edges and symmetry.** Set how big the quads should be,
-  let it find hard edges by angle, and mirror on X, Y or Z — the half you
-  keep is remeshed and a Mirror modifier rebuilds the rest.
-- **Your original is kept and hidden**, unless you choose to replace it.
-- **Blender stays usable while it runs.** The remeshing happens outside
-  Blender's main thread, so you can keep working, orbit, save — the whole
-  time. Big meshes take minutes and now they take them in the background.
-- **You can stop it.** A Cancel button next to Retopologize ends the run
-  cleanly, leaving your scene exactly as it was.
-- **It tells you the real size of the job before you start.** The count shown
-  is what the engine actually receives — with your modifiers applied — not
-  the face count sitting in the file, which can be a hundred times smaller.
-  Over 100,000 triangles it warns you to expect tens of minutes.
-- **Fine tuning holds only the settings that do something.** The engine
-  ignores eleven of the nineteen knobs it is usually given; those are not
-  here.
-- **It runs outside Blender**, so a mesh the engine cannot handle can no
-  longer take Blender down with it.
-
-⚠ **UVs, vertex groups and materials are not carried over yet** — the result
-is clean geometry. That is the next update, and the tool says so.
-
-⚠ **On a rough, organic mesh, turn off Detect under Sharp edges.** A crusty or
-noisy surface reads as a hard edge almost everywhere, and the engine then has
-to fit its quads around every one of them — which is the difference between
-seconds and a very long wait.
 
 ### Render Queue — renders now always get their file extension
 

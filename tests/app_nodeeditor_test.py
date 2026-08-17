@@ -1157,10 +1157,20 @@ tgt.toggle_all_slots()
 
 # --- the default output folder is pinned in the release builder
 MAKE_RELEASE = os.path.join(os.path.dirname(_ROOT), "license-server", "tools", "make_release.js")
-with open(MAKE_RELEASE, encoding="utf-8") as fh:
-    ok('"baked"' in fh.read(),
-       "folder: make_release.js NEVER_SHIP_DIRS knows the baked folder — "
-       "a release must not ship (or an update sweep) the user's maps")
+if os.path.exists(MAKE_RELEASE):
+    with open(MAKE_RELEASE, encoding="utf-8") as fh:
+        ok('"baked"' in fh.read(),
+           "folder: make_release.js NEVER_SHIP_DIRS knows the baked folder — "
+           "a release must not ship (or an update sweep) the user's maps")
+else:
+    # ⚠ `license-server\` is a SIBLING of this repo, not part of it, so a
+    # clone has not got it and neither has any CI runner — unguarded, this
+    # open() crashed the whole suite on a fresh checkout, taking 400+ real
+    # checks with it and reporting no summary at all.
+    # ⚠ Do NOT "fix" this by pointing it inside the repo: the thing being
+    # checked is the release builder, and it genuinely lives outside.
+    print("skip folder: make_release.js NEVER_SHIP_DIRS — no "
+          "license-server\\ beside this repo")
 ok(bakenodes.sanitize_name("We ird/na:me") == "We ird_na_me",
    "folder: auto names sanitize the same way the add-on does")
 ok(bakenodes.auto_out_path("MatA").endswith("MatA_baked")

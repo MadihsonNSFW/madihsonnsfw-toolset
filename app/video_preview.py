@@ -29,7 +29,7 @@ FRAME_SIZE = 256      # px, same as capture_preview's thumbnails
 _JPEG_QUALITY = 85
 _SEEK_TIMEOUT_MS = 4000   # per frame; a wedged decoder must not stall the queue
 
-CACHE_ROOT = os.path.join(config.APP_DIR, "_preview_cache")
+CACHE_ROOT = os.path.join(config.DATA_DIR, "_preview_cache")
 
 
 def _key(path):

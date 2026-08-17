@@ -1,10 +1,10 @@
 """Cross-platform helpers and data storage for the Render Queue tool.
 
 Queue settings and session live in a `render_queue\\` folder next to the
-toolset's config.json (config.APP_DIR) — beside the exe when frozen, beside
-main.py from source — so the dev app and the built exe keep separate state,
-exactly like config.json itself. Falls back to `~/.madi_render_queue` if that
-folder can't be written.
+toolset's config.json (config.DATA_DIR) — beside the exe when frozen, beside
+main.py from source, and under `~/Library/Application Support` on macOS — so
+the dev app and the built exe keep separate state, exactly like config.json
+itself. Falls back to `~/.madi_render_queue` if that folder can't be written.
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def _writable(d: str) -> bool:
 
 def data_dir() -> str:
     """Folder for the queue's settings.json / session.json."""
-    beside_config = os.path.join(_app_config.APP_DIR, "render_queue")
+    beside_config = os.path.join(_app_config.DATA_DIR, "render_queue")
     if _writable(beside_config):
         return beside_config
     home = os.path.join(os.path.expanduser("~"), ".madi_render_queue")

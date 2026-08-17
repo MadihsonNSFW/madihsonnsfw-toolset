@@ -147,7 +147,7 @@ ok(opt.default_cache_dir().endswith("madi_optimizer_cache"),
 
 # ================================================ the licence gate is GONE
 # ⚠ REMOVED 2026-08-14: every tab went free and all three prefix gates
-# (opt_*, madiref_*, quad_*) came OUT of server.py — premium packs are the
+# (opt_*, madiref_*) came OUT of server.py — premium packs are the
 # paid thing now, gated in the app's licence server, not in Blender. These
 # checks prove the ABSENCE with entitlement LOCKED, because a leftover gate
 # would silently re-lock a free tool for anyone whose old licence lapsed.

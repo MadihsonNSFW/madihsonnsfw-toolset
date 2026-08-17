@@ -28,6 +28,24 @@ def ok(cond, label):
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
+# ⚠⚠ REDIRECT THE CONFIG BEFORE ANY APP IMPORT, and this suite of all of them.
+# `madiref\tab.py` calls `config.save()` to remember the last clip, and this was
+# the ONE app suite that never pointed CONFIG_PATH somewhere disposable — so it
+# overwrote Marty's real `app\config.json` with `{}` every time it ran.
+#
+# ⚠ IT WENT UNNOTICED FOR A LONG TIME BECAUSE FROM SOURCE THE DAMAGE IS
+# INVISIBLE: `config.load()` merges DEFAULTS, and the default library from
+# source is the repo's own `library\`, which exists and is full. The wipe only
+# shows in a FROZEN build, whose default library is `dist\library` — a folder
+# that does not exist — and there it reads as an empty Studio Library
+# (`items=0 folders=0`). Found 2026-08-17 by a frozen smoke, not by a test.
+import config as _config  # noqa: E402
+
+_cfg_tmp = tempfile.mkdtemp(prefix="madi_madiref_cfg_")
+_config.APP_DIR = _cfg_tmp
+_config.DATA_DIR = _cfg_tmp
+_config.CONFIG_PATH = os.path.join(_cfg_tmp, "config.json")
+
 app = QApplication.instance() or QApplication([])
 
 from madiref import decoder, proxy, shm  # noqa: E402
@@ -220,7 +238,7 @@ ok(not hasattr(mainmod.MainWindow, "GATED_ATTRS"),
    "removed in 1.19.0, so nothing can blank a live tab")
 # ⚠ AND THE BLENDER HALF'S GATE IS GONE WITH IT (the app's lock was never the
 # bridge's — a gate here had to be REMOVED here). The madiref_* prefix check
-# left server.py on 2026-08-14 along with opt_* and quad_*: the bridge
+# left server.py on 2026-08-14 along with opt_*: the bridge
 # answers everyone, and the licence's meaning moved to pack downloads.
 _srv = open(os.path.join(ROOT, "blender_addon", "madi_anim_library",
                          "server.py"), encoding="utf-8").read()
@@ -636,11 +654,24 @@ ok(_dec._for_blender(_img, 7) is _img,
 
 # ⚠ the release builder must never sweep these up; unlike a proxy they cannot
 # be regenerated at all
-_mr = open(os.path.join(os.path.dirname(_ROOT), "license-server", "tools", "make_release.js"),
-           encoding="utf-8").read()
-ok('"_madiref_notes"' in _mr,
-   "⚠ notes: make_release.js NEVER_SHIP_DIRS knows _madiref_notes — a missing "
-   "name here is DATA LOSS, and this is the one file the user cannot rebuild")
+_mr_path = os.path.join(os.path.dirname(_ROOT), "license-server", "tools",
+                        "make_release.js")
+if os.path.exists(_mr_path):
+    _mr = open(_mr_path, encoding="utf-8").read()
+    ok('"_madiref_notes"' in _mr,
+       "⚠ notes: make_release.js NEVER_SHIP_DIRS knows _madiref_notes — a "
+       "missing name here is DATA LOSS, and this is the one file the user "
+       "cannot rebuild")
+else:
+    # ⚠ `license-server\` is a SIBLING of this repo, not part of it, so a
+    # clone has not got it and neither has any CI runner — where this was an
+    # unguarded open() it crashed the whole suite on a fresh checkout, and a
+    # crashed suite reports NO summary, which reads as "the port is broken".
+    # Hard check where the file is reachable, skipped where it cannot be.
+    # ⚠ Do NOT "fix" this by pointing it inside the repo: the thing being
+    # checked is the release builder, and it genuinely lives outside.
+    print("skip ⚠ notes: make_release.js NEVER_SHIP_DIRS — no "
+          "license-server\\ beside this repo")
 ok(_notes.NOTES_ROOT.endswith("_madiref_notes")
    and "_madiref_cache" not in _notes.NOTES_ROOT,
    "⚠ notes: they live OUTSIDE the proxy cache, which is trimmed oldest-first "
