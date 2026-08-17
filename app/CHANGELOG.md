@@ -5,7 +5,7 @@ drives it over a small local bridge, so your tools stop competing with the
 viewport for screen space. A few parts (the render queue, the library browser,
 importing) work with Blender closed entirely.
 
-**Eleven tabs, and every one of them is free.** Nothing in the Toolset needs a
+**Twelve tabs, and every one of them is free.** Nothing in the Toolset needs a
 licence, an account, or an internet connection. It is open source, and the
 Toolset makes **no network connections at all**.
 

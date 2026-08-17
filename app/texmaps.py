@@ -312,7 +312,30 @@ class TexMapsPage(QWidget):
         outer.addWidget(line)
 
         outer.addWidget(self._build_source())
-        outer.addLayout(self._build_chips())
+
+        # ⚠⚠ **THE CHIP ROW MUST BE ABLE TO SHRINK.** Seven chips plus four
+        # view buttons in a plain QHBoxLayout report their whole width as the
+        # row's minimum, and a QMainWindow takes the widest child — measured
+        # 2026-08-18: opening this tab pushed the WINDOW minimum from 638 px
+        # to **1476 px**, against Marty's "we need to be able to scale the
+        # window a lot" and the 549 px floor the rest of the app holds to.
+        # It cost nothing at startup (the tab is lazy) and everything the
+        # moment anyone opened it, which is exactly the kind of regression a
+        # startup measurement cannot see.
+        # A scroll area with an EXPLICIT minimum is the fix the app already
+        # uses (`rendering.ToolPage`): the explicit minimum overrides the
+        # child's own size hint, which is the only thing Qt honours here.
+        chips = QWidget()
+        chips.setLayout(self._build_chips())
+        chip_area = QScrollArea()
+        chip_area.setWidgetResizable(True)
+        chip_area.setFrameShape(QFrame.NoFrame)
+        chip_area.setWidget(chips)
+        chip_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        chip_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        chip_area.setFixedHeight(chips.sizeHint().height() + 14)
+        chip_area.setMinimumWidth(180)
+        outer.addWidget(chip_area)
 
         split = QSplitter(Qt.Horizontal)
         split.addWidget(self._build_dials())
@@ -498,10 +521,13 @@ class TexMapsPage(QWidget):
 
     def _build_export_bar(self):
         row = QHBoxLayout()
-        self.export_line = QLabel("")
+        # ⚠ Elided, not a plain QLabel: a single-line QLabel reports its FULL
+        # text width as its minimum, and this one carries a sentence. Same
+        # disease as the Node Editor hint that made ElidedLabel necessary.
+        self.export_line = widgets.ElidedLabel("", minimum=90)
         self.export_line.setObjectName("dim")
-        row.addWidget(self.export_line)
-        row.addStretch(1)
+        row.addWidget(self.export_line, 1)
+        row.addStretch(0)
         self.bit_combo = NoScrollComboBox()
         self.bit_combo.addItems(["Height 16-bit", "Height 8-bit"])
         self.bit_combo.setToolTip(
