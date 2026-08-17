@@ -335,7 +335,19 @@ MARKERS = [
     # the UTF-8 BOM on its manifest, which Blender REFUSES while
     # `package_install_files` still returns {'FINISHED'} — a build carrying
     # that hash ships an add-on nobody can install and nothing reports it.
-    ("addon_bundle", "10fd4f45dc7bb4a2", True),
+    # ⚠⚠ SET THIS FROM WHAT THE REPO STORES, NEVER FROM A WORKING TREE.
+    # `10fd4f45…` sat here until 2026-08-17 and was WRONG on every machine but
+    # one: `picker.py` happened to have CRLF locally while the other fourteen
+    # files had LF, and `text=auto` makes git call such a tree CLEAN, so
+    # nothing anywhere hinted at it. `pack_addon.py` reads bytes verbatim, so
+    # that one file put 5511 extra bytes (one per line) into the zip and moved
+    # the hash. The marker was therefore derived from a local accident — it
+    # failed on the Windows runner and would have failed in any clone.
+    # `blender_addon/** eol=lf` in `.gitattributes` now keeps the checkout
+    # identical everywhere; this value is the packed sha of that canonical
+    # source, reproduced byte for byte by the runner.
+    ("addon_bundle", "8d501dbdcb95e874", True),
+    ("addon_bundle", "10fd4f45dc7bb4a2", False),
     ("addon_bundle", "15758d6b33ae5f84", False),
     # --- 2026-08-07, all of Blender's bake options + a sample count -------
     ("bridge", "0.25.0", True),
