@@ -7,6 +7,18 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
+# ⚠⚠ The Blender add-on is packed into a zip whose sha256 is PINNED as a
+# marker in tools\verify_exe.py. `tools\pack_addon.py` is deterministic on
+# purpose — it fixes every ZipInfo date_time and reads each file in binary —
+# so that hash is a pure function of the FILE BYTES. Under a bare `text=auto`
+# a Windows checkout gets CRLF and a Linux/macOS one gets LF, which is two
+# different zips from one commit: the marker passed on the machine that set it
+# and failed on the Windows runner, with nothing to suggest line endings.
+# Pinning LF makes the packed extension byte-identical on all three platforms.
+# `text=auto` is kept so a binary added here later is still auto-detected and
+# left alone.
+blender_addon/** text=auto eol=lf
+
 # Never touched.
 *.exe binary
 *.dll binary
