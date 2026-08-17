@@ -102,7 +102,7 @@ UNREACHABLE_BACKOFF = 30.0
 # update_bridge_status warns when they differ, which catches the "rebuilt the
 # exe but forgot to reinstall the extension" case (and the reverse). Bump it
 # together with blender_manifest.toml whenever new commands land.
-EXPECTED_ADDON_VERSION = "0.49.0"
+EXPECTED_ADDON_VERSION = "0.50.0"
 
 # ---------------------------------------------------------------------------
 # Update safety: a version gap must DEGRADE, never break.
@@ -145,6 +145,15 @@ FEATURE_REQUIREMENTS = {
         "Installing the Blender add-on from here needs add-on 0.7.0 or newer — "
         "save the package and install it in Blender this once, and it can "
         "update itself from then on."),
+    # The Texture Maps tab's SCENE PICKER only. ⚠ The tab itself is not gated
+    # and must never be: making maps from a file on disk needs no Blender at
+    # all, so an older add-on costs you the "take a texture out of the .blend"
+    # shortcut and nothing else. Same contract as MadiRef's.
+    "texmaps_scene": (
+        "tex_list", "0.50.0",
+        "Taking a texture out of the open .blend needs Blender add-on 0.50.0 "
+        "or newer — update the extension from ⚙ Library Settings. You can "
+        "still open image files from disk."),
     "nsfw_assets": (
         "asset_build", "0.8.0",
         "Adding the MADI rigs needs Blender add-on 0.8.0 or newer — update the "
@@ -778,6 +787,26 @@ class Bridge:
 
     def list_materials(self):
         return self.request("list_materials", {})
+
+    def tex_list(self):
+        """Every image texture in the open .blend, with the FILE to read it
+        from (add-on 0.50.0). Pure read; no pixels cross the socket.
+
+        ⚠ On demand only — never on the status poll. It walks every material
+        in the scene, and nothing in the answer changes between timer ticks.
+        The 30 s timeout is for a heavy scene: the walk is one pass, but a
+        file with hundreds of materials is still real work on Blender's main
+        thread.
+        """
+        return self.request("tex_list", {}, timeout=30.0)
+
+    def tex_export(self, image, path):
+        """Ask Blender to write one image's pixels to a PNG the app names
+        (add-on 0.50.0) — the only route for an image that is packed,
+        generated, or painted and unsaved. Everything else is read off disk
+        by the app itself."""
+        return self.request("tex_export", {"image": image, "path": path},
+                            timeout=60.0)
 
     def bake_targets(self, mode, material=None, collection=None):
         """What a bake run would cover, without baking (add-on 0.26.0).

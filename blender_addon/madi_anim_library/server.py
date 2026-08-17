@@ -849,6 +849,16 @@ class BridgeServer:
         if cmd == "opt_preview_stop":
             from . import optimizer
             return optimizer.opt_preview_stop(p)
+        # --- Texture Maps. ⚠ `tex_list` is a PURE READ and `tex_export`
+        # writes ONE png where the app says — see texmaps.py for why each
+        # restriction is there. No prefix gate: every tab is free, and the
+        # commands are the same class as `capture_preview(path)`.
+        if cmd == "tex_list":
+            from . import texmaps
+            return texmaps.tex_list()
+        if cmd == "tex_export":
+            from . import texmaps
+            return texmaps.tex_export(p.get("image"), p.get("path"))
         if cmd == "anim_layers_add":
             return core.al_add_layer(
                 data_type=p.get("data_type", "OBJECT"),

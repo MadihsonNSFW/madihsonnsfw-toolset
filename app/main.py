@@ -98,6 +98,7 @@ SECTION_META = {
     "Anim Layers": ("anim_layers", "Animation"),
     "Node Setup": ("node_setup", "Nodes"),
     "Node Editor": ("nodeeditor", "Nodes"),
+    "Texture Maps": ("texmaps", "Nodes"),
     "MadiRef": ("madiref", "Scene"),
     "Optimization": ("optimizer", "Scene"),
     "NSFW Tools": ("nsfw", "Scene"),
@@ -4240,6 +4241,7 @@ class MainWindow(QMainWindow):
         self.nsfw = None
         self.nodeeditor = None
         self.madiref = None
+        self.texmaps = None
         self.picker = None
         self.picker_tabs_tool = None
         self.picker_buttons_tool = None
@@ -4445,6 +4447,25 @@ class MainWindow(QMainWindow):
         dev_console.BUFFER.appended.connect(self._on_log_line)
         self.apply_dev_console()
 
+        # Buy me a coffee. In the status bar so it is present without being in
+        # anyone's way — the Patreon link already existed but was buried in
+        # the About dialog, where nobody looking to support the thing would
+        # find it. Marty picked this look ("panel chip") from six variants
+        # rendered as real buttons, 2026-08-17.
+        # ⚠ Styled by `QPushButton#support` in theme.py, NOT by a stylesheet
+        # set here: a hardcoded one would survive a theme swap and sit there in
+        # the old palette. The heart is the one fixed colour, and it is red on
+        # every theme by design.
+        self.support_button = QPushButton("Buy me a coffee")
+        self.support_button.setObjectName("support")
+        self.support_button.setIcon(icons.icon("support", 15, "#e0574f"))
+        self.support_button.setIconSize(QSize(15, 15))
+        self.support_button.setCursor(Qt.PointingHandCursor)
+        self.support_button.setToolTip(
+            "Support the Toolset on Patreon — opens in your browser")
+        self.support_button.clicked.connect(self.open_support_page)
+        self.statusBar().addPermanentWidget(self.support_button)
+
         # Keep-on-top pin. Sits in the status bar next to the console button so
         # it is reachable from every tab without spending toolbar room.
         self.pin_button = QPushButton("📌 Pin")
@@ -4504,6 +4525,15 @@ class MainWindow(QMainWindow):
     # Both are gone — the app no longer talks to any server, and new versions
     # come from the GitHub releases page. What remains is the one genuinely
     # local operation: pushing the add-on this build carries into Blender.
+
+    def open_support_page(self):
+        """Open the Patreon membership page in the user's default browser.
+
+        ⚠ `QDesktopServices.openUrl` and nothing else — it hands the URL to the
+        OS, which is what "default browser" means. Spawning a browser by name
+        would pick the wrong one and fail on a machine that has not got it.
+        """
+        QDesktopServices.openUrl(QUrl(version.PATREON_MEMBERSHIP_URL))
 
     def _on_addon_message(self, text):
         if text:
@@ -4590,6 +4620,9 @@ class MainWindow(QMainWindow):
         # ⚠ "Premium nodes later" is a NODE-level gate, not a tab-level one:
         # putting this tab back in GATED would re-lock the whole canvas.
         ("nodeeditor", "Node Editor"),
+        # Texture Maps (2026-08-17). A LAZY tab: it owns an OpenGL context and
+        # a set of shaders, and nobody should pay for either at startup.
+        ("texmaps", "Texture Maps"),
         # ⚠ THE FOUR PAID TABS WERE ALL FREED 2026-08-14 (Marty: "make all
         # tabs free" — the pivot: every tool free for everyone, and premium
         # pose/animation PACKS become the paid thing, gated SERVER-SIDE by
@@ -4623,7 +4656,7 @@ class MainWindow(QMainWindow):
     # build's PYZ — PyInstaller collects function-level imports, but that is
     # proved there, never assumed. NOT a licensing mechanism: LockedPage/GATED
     # is that; this is purely "don't build what nobody is looking at".
-    LAZY_TOOLS = {"anim_layers"}
+    LAZY_TOOLS = {"anim_layers", "texmaps"}
 
     def _ensure_tab_built(self, index):
         """Build a lazy tab the first time it lands on screen.
@@ -4818,6 +4851,27 @@ class MainWindow(QMainWindow):
         self.madiref.status_message.connect(
             lambda msg: self.statusBar().showMessage(msg, 6000))
         return self.madiref
+
+    def _build_texmaps(self):
+        """Texture Maps - a photo (or a texture out of the open .blend)
+        becomes a PBR set (2026-08-17, `docs\texmaps.md`).
+
+        ⚠ **LAZY, and it is the tab that most needs to be.** Opening it
+        creates an OpenGL context and compiles a dozen fragment shaders; at
+        startup that would be paid by everyone who never opens it. The
+        imports are INSIDE the function for the same reason (PERF_PLAN
+        option D) - and `tools\verify_exe.py` pins the modules in the frozen
+        build's PYZ, because PyInstaller collecting a function-level import
+        is something to prove rather than assume.
+
+        ⚠ It reaches Blender ONLY when asked (the scene picker and Use active
+        object). With no Blender at all the tab still works end to end from a
+        file on disk, which is the same contract MadiRef has.
+        """
+        import texmaps as texmapsmod
+
+        self.texmaps = texmapsmod.TexMapsPage(self.bridge, self)
+        return self.texmaps
 
     def _build_physics(self):
         # Bone Jiggle — spring-driven secondary motion on bones. The tool
@@ -5142,7 +5196,7 @@ class MainWindow(QMainWindow):
         is still usable when it is not."""
         pages = [self.rendering, self.node_setup, self.anim_layers, self.physics,
                  self.picker, self.optimizer, self.nsfw, self.nodeeditor,
-                 self.madiref]
+                 self.madiref, self.texmaps]
         return [self.tabs.widget(i) for i in range(self.tabs.count())] + \
                [page for page in pages if page is not None]
 

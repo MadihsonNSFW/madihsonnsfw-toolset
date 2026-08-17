@@ -126,6 +126,21 @@ def _optimize(p, c):
     p.drawEllipse(QPointF(12, 16), 1.35, 1.35)
 
 
+def _texmaps(p, c):
+    """A material ball over a run of tiles — a photo becoming a surface.
+
+    ⚠ Drawn at the size it SHIPS at before being judged (the 2026-08-17
+    lesson): at 18 px the sphere reads, the highlight reads, and the tiles
+    read as a strip rather than as three dots.
+    """
+    p.drawEllipse(QRectF(5.2, 3.2, 13.6, 13.6))
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawEllipse(QPointF(9.6, 7.6), 1.5, 1.5)
+    for x in (4.2, 9.5, 14.8):
+        p.drawRoundedRect(QRectF(x, 18.6, 4.6, 2.6), 0.8, 0.8)
+
+
 def _nsfw(p, _c):
     heart = QPainterPath()
     heart.moveTo(12, 19.6)
@@ -134,6 +149,32 @@ def _nsfw(p, _c):
     heart.cubicTo(13.2, 6.7, 15.8, 6.4, 17.7, 8.7)
     heart.cubicTo(19.8, 11.3, 18.1, 15.4, 12, 19.6)
     p.drawPath(heart)
+
+
+def _support(p, c):
+    """A FILLED heart — the "Buy me a coffee" button.
+
+    ⚠ Filled on purpose, where `_nsfw` above is a heart STROKED: the two sit in
+    the same window, and an outline heart beside an outline heart reads as the
+    same control. Filled, and red rather than the rail colour, is what tells
+    them apart.
+
+    ⚠ **The deep cleft and the sharp point ARE the design.** Judge this at
+    15 px, the size it actually ships at — at 60 px any lobed blob passes for a
+    heart, which is how a first attempt got through looking like a rounded
+    square.
+    """
+    heart = QPainterPath()
+    heart.moveTo(12, 21.3)
+    heart.cubicTo(10.6, 19.9, 2.4, 13.4, 2.4, 8.3)
+    heart.cubicTo(2.4, 4.9, 5.1, 2.7, 7.9, 2.7)
+    heart.cubicTo(10.0, 2.7, 11.3, 4.2, 12, 6.4)
+    heart.cubicTo(12.7, 4.2, 14.0, 2.7, 16.1, 2.7)
+    heart.cubicTo(18.9, 2.7, 21.6, 4.9, 21.6, 8.3)
+    heart.cubicTo(21.6, 13.4, 13.4, 19.9, 12, 21.3)
+    heart.closeSubpath()
+    p.setPen(Qt.NoPen)
+    p.fillPath(heart, c)
 
 
 def _physics(p, _c):
@@ -337,9 +378,11 @@ DRAW = {
     "anim_layers": _layers,
     "node_setup": _nodesetup,
     "nodeeditor": _nodeeditor,
+    "texmaps": _texmaps,
     "madiref": _madiref,
     "optimizer": _optimize,
     "nsfw": _nsfw,
+    "support": _support,
     "physics": _physics,
     "news": _news,
     "search": _search,

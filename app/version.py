@@ -27,7 +27,7 @@ thing that makes one customer's updater refuse a perfectly good build.
 
 # First versioned release. The app was shipping long before it had a number;
 # 1.0.0 is where the counting starts rather than a claim about maturity.
-APP_VERSION = "1.21.1"
+APP_VERSION = "1.22.0"
 
 # ---------------------------------------------------------------- identity
 # Where the app says it came from and where to go for help. Kept HERE, in the
@@ -41,6 +41,14 @@ AUTHOR = "MadihsonNSFW"
 # wording everywhere should keep them apart — someone with a crash to report
 # does not want to be pointed at a pledge page.
 PATREON_URL = "https://www.patreon.com/c/MadihsonNSFW"
+# The membership page specifically — where the "Buy me a coffee" chip in the
+# status bar goes (Marty, 2026-08-17). Deliberately its own constant rather
+# than reusing PATREON_URL above: that one is the creator page and this one
+# lands on the tiers.
+# ⚠ Both `patreon.com/madihsonnsfw/membership` and `patreon.com/c/…` 308 to the
+# same canonical page — checked, not assumed, because a donate button that goes
+# nowhere is worse than no button.
+PATREON_MEMBERSHIP_URL = "https://www.patreon.com/madihsonnsfw/membership"
 # https, though the invite is usually written http: discord.gg redirects to TLS
 # anyway, and shipping an http:// link in a desktop app is a needless downgrade.
 DISCORD_URL = "https://discord.gg/EPcgrRkdhe"

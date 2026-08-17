@@ -13,6 +13,44 @@ Toolset makes **no network connections at all**.
 
 ## Update notes
 
+### 1.22.0 - Texture Maps: a photo becomes a material
+
+A new tab. Drop in a photo, or take a texture straight out of your Blender
+scene, and get a full PBR set out of it - **Normal, Roughness, Ambient
+Occlusion, Height, Metallic, Bump** and a **Seamless** tiling version.
+
+- **It runs on your graphics card.** A map re-renders in about six
+  milliseconds, so the preview keeps up with the slider rather than catching
+  up after it.
+- **Use the textures you already have.** Press **Blender scene** and every
+  image texture in the open .blend is listed - base colours first, because
+  that is what you generate from. **Use active object** skips the list
+  entirely. Images packed into the .blend or painted and unsaved are handled
+  for you.
+- ⚠ **If you have shrunk a texture with the Optimization tab, the maps are
+  made from your ORIGINAL file**, not from the smaller stand-in, and the tab
+  says so. Maps built from a shrunken copy look perfectly fine and carry a
+  fraction of the detail.
+- **Tick what you want, look at what you like.** A map's tickbox decides what
+  gets exported; clicking its name opens its dials. They are separate on
+  purpose.
+- **Four views**: the flat map (tiled 1x/2x/3x), a lit sphere and cube you can
+  orbit, and every map at once.
+- **16-bit height maps** by default, named `..._height16.png`, because an
+  8-bit one bands visibly on smooth slopes.
+- **Export to a folder or a ZIP**, with a README explaining how each map wires
+  up in Blender, Unreal and Unity - including the one everybody gets wrong
+  (every map except the base colour is **Non-Color**).
+- Normal maps are OpenGL (+Y), which is what Blender wants. There is an
+  **Invert Y (DirectX)** tick for Unreal.
+
+The tab needs OpenGL 3.3. If your machine will not provide one, the tab says
+so and nothing else is affected.
+
+Taking textures out of Blender needs add-on **0.50.0**. On an older add-on the
+scene picker explains that and everything else keeps working - the tab does
+its whole job from a file on disk with Blender closed.
+
 ### 1.21.1 — the "Update add-on" button actually updates the add-on
 
 Two bugs in the same corner, both about the Blender add-on install. The

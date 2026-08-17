@@ -341,7 +341,8 @@ MARKERS = [
     # pack that 8d501dbd… was. ⚠ Verified LF-clean before pinning: every text
     # file under `blender_addon\` was checked for CRLF, because that is what
     # moved this hash the last time (see the block above the desktop markers).
-    ("addon_bundle", "d254f571ec21de73", True),
+    ("addon_bundle", "183298fb0141cf96", True),
+    ("addon_bundle", "d254f571ec21de73", False),
     # ⚠ The Quadify-LESS bundle, pinned absent: a build made from source that
     # still has the removal would ship an app with a Quadify tab whose Blender
     # half answers no `quad_*` at all, and nothing else would report it.
@@ -479,7 +480,6 @@ MARKERS = [
     # ⚠ A VERSION-STRING MARKER DIES WHEN THE VERSION MOVES — fourth time.
     # This is EXPECTED_ADDON_VERSION; validate it against source before every
     # build rather than discovering it after a four-minute one.
-    ("bridge", "0.49.0", True),
     # --- THE RESKIN + the update-install fix (1.17.0) ----------------------
     # ⚠ The lesson Quadify taught, applied on the way in this time: a new
     # module with NO markers can be missing from a build and only fail when
@@ -510,6 +510,35 @@ MARKERS = [
     ("quadify", "Retopologising", True),
     ("quadify", "quad_progress", True),
     ("optimizer", "quad_progress", True),
+    # --- Texture Maps (2026-08-17) ----------------------------------------
+    # ⚠⚠ **THE LAZY-TAB TRAP, AND THIS TAB IS THE WORST CASE FOR IT.** Its
+    # three modules are imported INSIDE `_build_texmaps` (PERF_PLAN option D),
+    # and PyInstaller collecting a function-level import is something to
+    # prove, not assume — the anim_layers lesson. A build missing them looks
+    # perfect until somebody opens the tab, and then the tab is simply dead.
+    ("texmaps", "TexMapsPage", True),
+    ("texmaps", "README_TEMPLATE", True),
+    ("texmaps_gl", "MapRunner", True),
+    # The GLSL travels as string constants inside the module: if the shaders
+    # were ever moved to files, they would be data that a build can drop.
+    ("texmaps_gl", "#version 330 core", True),
+    ("texmaps_gl", "GLUnavailable", True),
+    # ⚠ The reference implementation is a TEST ORACLE and must NOT ship:
+    # nothing under `app\` imports it, so PyInstaller never collects it,
+    # and the first 1.22.0 build proved that by failing a present-marker.
+    # Pinned ABSENT so the intent is recorded — and so an accidental
+    # runtime import (which would quietly put a pure-Python copy of every
+    # map into the binary) fails this check instead of shipping.
+    ("texmaps_ref", "levels", False),
+    ("texmaps_source", "ThumbCache", True),
+    # ⚠ The scene picker's gate and its two commands. A build whose bridge
+    # lost these would offer the picker and then fail on the call.
+    ("bridge", "texmaps_scene", True),
+    ("bridge", "tex_export", True),
+    ("bridge", "0.50.0", True),
+    # ⚠ The version this REPLACED, pinned absent — the pair moves together
+    # every time EXPECTED_ADDON_VERSION does, or a stale build passes.
+    ("bridge", "0.49.0", False),
     # --- the desktop surface ----------------------------------------------
     # ⚠ These three outlived the cancelled port (2026-08-17) because they are
     # worth having on Windows alone: `desktop.py` is the ONE place the app asks
@@ -757,7 +786,10 @@ def main():
     # build rather than believe: a module missing here is a tab that crashes
     # on FIRST OPEN, for every user, and never from a source run.
     lazy_bad = 0
-    for lazy in ("anim_layers", "markers"):
+    for lazy in ("anim_layers", "markers",
+                 # Texture Maps (2026-08-17): three modules behind one
+                 # function-level import, and the tab is dead without any.
+                 "texmaps", "texmaps_gl", "texmaps_source"):
         if lazy in pyz.toc:
             print("ok   lazy module %-12s is in the frozen PYZ" % lazy)
         else:

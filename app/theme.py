@@ -405,6 +405,16 @@ QPushButton#danger {{
     background: transparent; border: 1px solid #6b3230; color: #e06c60;
 }}
 QPushButton#danger:hover {{ background: #4a2523; }}
+/* The "Buy me a coffee" chip in the status bar. Marty picked this one from
+   six rendered variants (2026-08-17) - it sits on the panel colour like a tag
+   rather than competing with the file name beside it. Themed here rather than
+   with a hardcoded stylesheet so it follows a theme swap; only the heart is a
+   fixed red, and that lives in `icons.py`. */
+QPushButton#support {{
+    background: {PANEL2}; border: 1px solid {BORDER}; border-radius: 4px;
+    color: {TEXT_DIM}; padding: 3px 10px;
+}}
+QPushButton#support:hover {{ background: {PANEL}; color: {TEXT}; }}
 
 QTreeWidget, QListWidget {{
     background: {PANEL}; border: none; outline: none;

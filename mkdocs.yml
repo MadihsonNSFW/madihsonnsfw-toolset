@@ -94,6 +94,7 @@ nav:
       - Anim Layers: tabs/anim-layers.md
       - Node Setup: tabs/node-setup.md
       - Node Editor: tabs/node-editor.md
+      - Texture Maps: tabs/texture-maps.md
       - MadiRef: tabs/madiref.md
       - Optimization: tabs/optimization.md
       - Physics: tabs/physics.md
