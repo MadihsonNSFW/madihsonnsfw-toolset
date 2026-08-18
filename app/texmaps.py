@@ -67,22 +67,49 @@ SCENE_STRIP_MAX = 48
 # Small widgets
 # ===========================================================================
 
-class MapChip(QFrame):
-    """One map: a tick (export it) and a label (click to open its dials)."""
+class MapChip(QWidget):
+    """One map: a tick (export it) and a label (click to open its dials).
+
+    ⚠⚠ **PAINTS ITS OWN BOX — NO STYLESHEET ON THE CHIP.** The first version
+    was a QFrame styled with `QFrame { background; border }`, and a QLabel
+    *is* a QFrame: the label drew a second bordered box inside the chip, so
+    every chip read as "a tick floating beside a button", and the selected
+    one was a solid accent block with the accent-filled tick melting into it
+    (Marty's screenshot, 2026-08-18: "feels bugged and is weird when I have
+    something checked"). One QPainter rounded rect, and the children get
+    only what they are told.
+
+    ⚠ **A themed QCheckBox paints its 6 px label spacing in PANEL** — on a
+    coloured chip that is a dark bar beside the tick (pixel-dumped: x 24–29
+    were `PANEL` on an accent chip). `spacing: 0` on a text-less tick
+    removes the area instead of hiding it; `background: transparent` covers
+    the same in case a theme ever gives the box a ground.
+
+    The active chip is a TINT with an accent border, not a solid accent
+    fill: the checked indicator is itself accent-filled, and it has to stay
+    legible on the chip that is open. Solid accent is what the view buttons
+    use, and a chip must not look like one of those.
+    """
 
     selected = Signal(str)
     toggled = Signal(str, bool)
+
+    RADIUS = 4
 
     def __init__(self, key, label, parent=None):
         super().__init__(parent)
         self.key = key
         self._active = False
+        self._hover = False
         self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WA_Hover, True)
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(7, 3, 9, 3)
-        lay.setSpacing(6)
+        lay.setContentsMargins(9, 5, 11, 5)
+        lay.setSpacing(7)
         self.box = QCheckBox()
         self.box.setToolTip("Include %s in the export" % label)
+        self.box.setStyleSheet(
+            "QCheckBox { spacing: 0px; background: transparent; }")
         self.box.stateChanged.connect(
             lambda _s: self.toggled.emit(self.key, self.box.isChecked()))
         lay.addWidget(self.box)
@@ -104,26 +131,57 @@ class MapChip(QFrame):
 
     def _restyle(self):
         # ⚠ Theme constants, never palette() — the app rebinds these on a
-        # theme change and re-runs `retheme()` below.
-        if self._active:
-            self.setStyleSheet(
-                "QFrame { background: %s; border: 1px solid %s; "
-                "border-radius: 4px; } QLabel { color: white; }"
-                % (theme.ACCENT, theme.ACCENT))
-        else:
-            self.setStyleSheet(
-                "QFrame { background: %s; border: 1px solid %s; "
-                "border-radius: 4px; } QLabel { color: %s; }"
-                % (theme.PANEL2, theme.BORDER, theme.TEXT))
+        # theme change and re-runs `retheme()` below. The label carries ONLY
+        # a colour; its background stays transparent so the chip's own paint
+        # shows through.
+        colour = "white" if self._active else theme.TEXT
+        self.label.setStyleSheet(
+            "QLabel { color: %s; background: transparent; border: none; }"
+            % colour)
+        self.update()
 
     def retheme(self):
         self._restyle()
+
+    def paintEvent(self, _event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        if self._active:
+            fill = _mix(theme.ACCENT, theme.PANEL2, 0.30)
+            edge = theme.ACCENT
+        else:
+            fill = theme.PANEL2
+            edge = theme.TEXT_DIM if self._hover else theme.BORDER
+        painter.setPen(QColor(edge))
+        painter.setBrush(QColor(fill))
+        painter.drawRoundedRect(self.rect().adjusted(0, 0, -1, -1),
+                                self.RADIUS, self.RADIUS)
+        painter.end()
+
+    def enterEvent(self, event):
+        self._hover = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover = False
+        self.update()
+        super().leaveEvent(event)
 
     def mousePressEvent(self, event):
         # A click anywhere but the tick selects. The tick keeps its own click.
         if event.button() == Qt.LeftButton:
             self.selected.emit(self.key)
         super().mousePressEvent(event)
+
+
+def _mix(colour, base, amount):
+    """`amount` of `colour` over `base`, both #rrggbb — the chip tint."""
+    a = QColor(colour)
+    b = QColor(base)
+    return QColor(round(a.red() * amount + b.red() * (1 - amount)),
+                  round(a.green() * amount + b.green() * (1 - amount)),
+                  round(a.blue() * amount + b.blue() * (1 - amount))).name()
 
 
 class PreviewView(QWidget):
@@ -313,29 +371,32 @@ class TexMapsPage(QWidget):
 
         outer.addWidget(self._build_source())
 
-        # ⚠⚠ **THE CHIP ROW MUST BE ABLE TO SHRINK.** Seven chips plus four
-        # view buttons in a plain QHBoxLayout report their whole width as the
-        # row's minimum, and a QMainWindow takes the widest child — measured
-        # 2026-08-18: opening this tab pushed the WINDOW minimum from 638 px
-        # to **1476 px**, against Marty's "we need to be able to scale the
-        # window a lot" and the 549 px floor the rest of the app holds to.
-        # It cost nothing at startup (the tab is lazy) and everything the
-        # moment anyone opened it, which is exactly the kind of regression a
-        # startup measurement cannot see.
-        # A scroll area with an EXPLICIT minimum is the fix the app already
-        # uses (`rendering.ToolPage`): the explicit minimum overrides the
-        # child's own size hint, which is the only thing Qt honours here.
-        chips = QWidget()
-        chips.setLayout(self._build_chips())
-        chip_area = QScrollArea()
-        chip_area.setWidgetResizable(True)
-        chip_area.setFrameShape(QFrame.NoFrame)
-        chip_area.setWidget(chips)
-        chip_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        chip_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        chip_area.setFixedHeight(chips.sizeHint().height() + 14)
-        chip_area.setMinimumWidth(180)
-        outer.addWidget(chip_area)
+        # ⚠⚠ **THE CHIP ROW MUST BE ABLE TO SHRINK — BY WRAPPING.** Seven
+        # chips plus four view buttons in a plain QHBoxLayout report their
+        # whole width as the row's minimum, and a QMainWindow takes the
+        # widest child — measured 2026-08-18: opening this tab pushed the
+        # WINDOW minimum from 638 px to **1476 px**, against Marty's "we need
+        # to be able to scale the window a lot" and the 549 px floor the rest
+        # of the app holds to. It cost nothing at startup (the tab is lazy)
+        # and everything the moment anyone opened it.
+        # The first fix was a scroll area with an explicit minimum, and it
+        # was worse in a different way: under pressure the row squeezed the
+        # VIEW BUTTONS to 46 px each ("Sp…re", "Al…p" — the theme's
+        # `min-width` makes a QToolButton shrinkable below its text) before
+        # it ever showed a scrollbar. Now the chips live in a FlowLayout,
+        # whose minimum is one chip and which asks for another LINE when the
+        # window is narrow, and the view buttons sit beside it in a
+        # NoShrinkRow that cannot be squeezed at all. Nothing is ever drawn
+        # narrower than it asked to be.
+        self.chip_row = QHBoxLayout()
+        self.chip_row.setSpacing(10)
+        self.chip_host = QWidget()
+        self.chip_host.setLayout(self._build_chips())
+        self.chip_host.setSizePolicy(QSizePolicy.Expanding,
+                                     QSizePolicy.Preferred)
+        self.chip_row.addWidget(self.chip_host, 1)
+        self.chip_row.addWidget(self._build_views(), 0, Qt.AlignTop)
+        outer.addLayout(self.chip_row)
 
         split = QSplitter(Qt.Horizontal)
         split.addWidget(self._build_dials())
@@ -436,21 +497,25 @@ class TexMapsPage(QWidget):
         return frame
 
     def _build_chips(self):
-        row = QHBoxLayout()
-        row.setSpacing(4)
+        flow = widgets.FlowLayout(h_spacing=6, v_spacing=6)
         tag = QLabel("MAPS")
         tag.setObjectName("dim")
-        row.addWidget(tag)
+        flow.addWidget(tag)
         self.chips = {}
         for key in tgl.MAP_ORDER:
             chip = MapChip(key, tgl.MAPS[key]["label"])
             chip.set_ticked(self.enabled.get(key, False))
             chip.selected.connect(self._select)
             chip.toggled.connect(self._on_tick)
-            row.addWidget(chip)
+            flow.addWidget(chip)
             self.chips[key] = chip
-        row.addStretch(1)
+        return flow
 
+    def _build_views(self):
+        views = widgets.NoShrinkRow()
+        row = QHBoxLayout(views)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(2)
         self.view_buttons = []
         for index, name in enumerate(VIEWS):
             button = QToolButton()
@@ -462,7 +527,7 @@ class TexMapsPage(QWidget):
             button.clicked.connect(lambda _c, i=index: self._set_view(i))
             row.addWidget(button)
             self.view_buttons.append(button)
-        return row
+        return views
 
     def _build_dials(self):
         self.dial_host = QWidget()

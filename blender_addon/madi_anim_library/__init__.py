@@ -389,6 +389,11 @@ def register():
     # registered before the bridge can answer a command that would use it.
     from . import madiref
     madiref.register()
+    # Organize owns four Scene properties and two PropertyGroups, and the
+    # panel draws `scene.madi_sets` — so, like every module above, it is
+    # registered before the bridge can answer a command that would use it.
+    from . import organize
+    organize.register()
     # ⚠ NOTHING STARTS THE BRIDGE HERE. The 0.5 s autostart timer that used to
     # close this function is gone (see the note above `register`), and the rule
     # it existed for still stands for anything added later: NEVER touch
@@ -398,6 +403,11 @@ def register():
 def unregister():
     if server.server.running:
         server.server.stop()
+    try:
+        from . import organize
+        organize.unregister()
+    except Exception:                                # noqa: BLE001
+        pass
     optimizer.unregister()
     picker.unregister()
     markers.unregister()

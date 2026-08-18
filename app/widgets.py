@@ -10,13 +10,13 @@ refactored underneath a working feature. This one takes an arbitrary range,
 int or float, and an optional unit suffix.
 """
 
-from PySide6.QtCore import (QEvent, QObject, QPointF, QRectF, QSize, Qt,
-                            QTimer, Signal)
+from PySide6.QtCore import (QEvent, QObject, QPoint, QPointF, QRect, QRectF,
+                            QSize, Qt, QTimer, Signal)
 from PySide6.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea,
                                QAbstractSpinBox, QApplication, QCheckBox,
                                QComboBox, QDialog, QInputDialog, QLabel,
-                               QSizePolicy,
+                               QLayout, QSizePolicy,
                                QFrame, QHBoxLayout, QProgressBar, QPushButton,
                                QSlider, QStatusBar, QStyle, QTabBar,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout,
@@ -349,6 +349,137 @@ class ElidedLabel(QLabel):
         metrics = QFontMetrics(self.font())
         QLabel.setText(self, metrics.elidedText(
             self._full, Qt.ElideRight, max(0, self.width() - 2)))
+
+
+class FlowLayout(QLayout):
+    """Left-to-right, wrapping to the next line when the row is full — the
+    layout a row of chips wants. Reports `heightForWidth`, so the parent
+    grows the row by a line instead of clipping it, squeezing it, or
+    scrolling it.
+
+    ⚠ **`minimumSize` IS THE WIDEST CHILD, NOT THE SUM.** That is the whole
+    reason this exists. Seven map chips in a QHBoxLayout reported their total
+    as the row's minimum, and a QMainWindow takes its widest child — so
+    opening the Texture Maps tab took the window minimum from 638 px to
+    1476 px (measured 2026-08-18). The first fix was a scroll area, and it
+    left the view buttons squeezed to "Sp…re" and "Al…p" (Marty's
+    screenshot), because a stylesheet `min-width` makes a QToolButton
+    shrinkable below its text — see `NoShrinkRow`. Wrapping has neither
+    problem: nothing is ever narrower than it asked to be.
+
+    Children keep their `sizeHint` exactly; there is no stretching, which is
+    right for chips and buttons and wrong for anything that wants to fill.
+    """
+
+    def __init__(self, parent=None, margin=0, h_spacing=6, v_spacing=6):
+        super().__init__(parent)
+        self._items = []
+        self._h = h_spacing
+        self._v = v_spacing
+        self.setContentsMargins(margin, margin, margin, margin)
+
+    # ------------------------------------------------ QLayout contract
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientations(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._arrange(QRect(0, 0, width, 0), test=True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._arrange(rect, test=False)
+
+    def sizeHint(self):
+        # ⚠ The hint is ALSO the widest child. A hint that summed the row
+        # would be honoured by a QSplitter or a scroll area as "this is how
+        # wide I want to be", and the wrapping would never get a chance.
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        return size + QSize(margins.left() + margins.right(),
+                            margins.top() + margins.bottom())
+
+    # ------------------------------------------------ the arrangement
+    def _arrange(self, rect, test):
+        """Place every item; return the height used. `test` = measure only.
+
+        Items on one line are centred vertically against the tallest of
+        them, so a caption label sits on the middle of the chips beside it
+        rather than on their top edge.
+        """
+        margins = self.contentsMargins()
+        area = rect.adjusted(margins.left(), margins.top(),
+                             -margins.right(), -margins.bottom())
+        y = area.y()
+        line = []            # (item, hint, x) waiting to be placed
+        line_height = 0
+
+        def flush():
+            if not test:
+                for item, hint, x in line:
+                    dy = (line_height - hint.height()) // 2
+                    item.setGeometry(QRect(QPoint(x, y + dy), hint))
+            del line[:]
+
+        x = area.x()
+        for item in self._items:
+            hint = item.sizeHint()
+            if line and x + hint.width() > area.right() + 1:
+                # would overrun — wrap. The FIRST item on a line is placed
+                # regardless (and clipped), so a too-narrow parent still
+                # shows something rather than nothing.
+                flush()
+                y += line_height + self._v
+                x = area.x()
+                line_height = 0
+            line.append((item, hint, x))
+            x += hint.width() + self._h
+            line_height = max(line_height, hint.height())
+        flush()
+        return y + line_height - rect.y() + margins.bottom()
+
+
+class NoShrinkRow(QWidget):
+    """A widget whose minimum IS its size hint — for a row of buttons that
+    must never be squeezed.
+
+    ⚠ **The theme's `QToolButton { min-width: 34px }` makes every tool
+    button SHRINKABLE.** A stylesheet min-width becomes an explicit
+    `setMinimumWidth` on the widget, and a layout treats an explicit minimum
+    as *the* minimum — the text-derived hint is ignored — so under pressure
+    Qt squeezed the Texture Maps view buttons to 46 px and elided them to
+    "Sp…re" and "Al…p" (Marty's screenshot, 2026-08-18). Pinning each
+    button's minimum to its hint fights the stylesheet, which re-applies its
+    own on every re-polish. Reporting the CONTAINER's minimum as its hint
+    needs no pinning and nothing to keep in step: a plain QWidget has no
+    stylesheet geometry for the style to overwrite.
+    """
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
 
 
 class NoWheelFilter(QObject):

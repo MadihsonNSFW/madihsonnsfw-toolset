@@ -49,6 +49,7 @@ scroll while a 461-bone rig evaluates next door.
 | **Node Setup** | Relink a node's outgoing wires; set up an image sequence without typing into file fields |
 | **Node Editor** | A node canvas for texture baking, driving Blender's own bake operator |
 | **Texture Maps** | One photo, or a texture out of your scene, becomes a PBR set - normal, roughness, AO, height, metallic, bump and a seamless tiling version, on your GPU |
+| **Organize** | Sets of objects saved in your .blend - a rig with its meshes, the lights for a shot - and one button that shows only that set, in every viewport |
 | **MadiRef** | Video reference playing in the viewport and in the app at once, frame-matched, with drawn notes |
 | **Optimization** | Camera-measured texture shrinking, managed decimation, quad remeshing, and what is making your `.blend` so big |
 | **Physics** | Spring-driven jiggle on bones, with collision, wind and baking |

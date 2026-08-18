@@ -352,6 +352,108 @@ def _win_close(p, _c):
     p.drawLine(QPointF(16.5, 7.5), QPointF(7.5, 16.5))
 
 
+def _organize(p, c):
+    """Organize: a bracket holding three things — the "a set is a bag of
+    objects" idea, with one of them a rig."""
+    p.drawRoundedRect(QRectF(3.5, 4.5, 17, 15), 2.5, 2.5)
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawEllipse(QPointF(8.2, 9.2), 1.7, 1.7)
+    p.drawRoundedRect(QRectF(11.4, 7.6, 6.2, 3.2), 1, 1)
+    p.drawRoundedRect(QRectF(6.6, 12.9, 4.4, 3.4), 0.9, 0.9)
+    p.drawRoundedRect(QRectF(13.0, 12.9, 4.6, 3.4), 0.9, 0.9)
+
+
+def _ob_armature(p, c):
+    """A bone — Blender's own armature silhouette, in our line weight."""
+    p.drawLine(QPointF(7.5, 16.5), QPointF(16.5, 7.5))
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawEllipse(QPointF(7.2, 16.8), 2.6, 2.6)
+    p.drawEllipse(QPointF(16.8, 7.2), 2.6, 2.6)
+
+
+def _ob_mesh(p, c):
+    """A triangle with its vertices marked."""
+    p.drawPolygon(QPolygonF([QPointF(12, 5.5), QPointF(19, 18),
+                             QPointF(5, 18)]))
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    for point in (QPointF(12, 5.5), QPointF(19, 18), QPointF(5, 18)):
+        p.drawEllipse(point, 1.9, 1.9)
+
+
+def _ob_light(p, _c):
+    """A bulb."""
+    p.drawEllipse(QRectF(6.5, 4.5, 11, 11))
+    p.drawLine(QPointF(9.5, 18), QPointF(14.5, 18))
+    p.drawLine(QPointF(10.5, 20.5), QPointF(13.5, 20.5))
+
+
+def _ob_empty(p, _c):
+    """The plain-axes empty."""
+    p.drawLine(QPointF(12, 5), QPointF(12, 19))
+    p.drawLine(QPointF(5, 12), QPointF(19, 12))
+
+
+def _solo(p, c):
+    """The isolate star — filled, matching Blender's SOLO_ON."""
+    path = QPainterPath()
+    for step in range(10):
+        angle = -math.pi / 2 + step * math.pi / 5
+        reach = 8.6 if step % 2 == 0 else 3.9
+        point = QPointF(12 + reach * math.cos(angle),
+                        12 + reach * math.sin(angle))
+        path.lineTo(point) if step else path.moveTo(point)
+    path.closeSubpath()
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawPath(path)
+
+
+def _solo_off(p, _c):
+    """The same star, outlined — SOLO_OFF."""
+    path = QPainterPath()
+    for step in range(10):
+        angle = -math.pi / 2 + step * math.pi / 5
+        reach = 8.6 if step % 2 == 0 else 3.9
+        point = QPointF(12 + reach * math.cos(angle),
+                        12 + reach * math.sin(angle))
+        path.lineTo(point) if step else path.moveTo(point)
+    path.closeSubpath()
+    p.drawPath(path)
+
+
+def _cursor(p, c):
+    """Select — an arrow cursor."""
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawPolygon(QPolygonF([QPointF(6, 4), QPointF(18.5, 12.5),
+                             QPointF(12.8, 13.6), QPointF(16, 19.4),
+                             QPointF(13.6, 20.6), QPointF(10.6, 14.9),
+                             QPointF(6, 18.6)]))
+
+
+def _warn(p, c):
+    """A warning triangle — a set member whose object is gone."""
+    p.drawPolygon(QPolygonF([QPointF(12, 4.5), QPointF(20.5, 19.5),
+                             QPointF(3.5, 19.5)]))
+    p.drawLine(QPointF(12, 9.5), QPointF(12, 14.2))
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawEllipse(QPointF(12, 16.8), 1.1, 1.1)
+
+
+def _up(p, _c):
+    p.drawPolyline(QPolygonF([QPointF(6.5, 14.5), QPointF(12, 8.5),
+                              QPointF(17.5, 14.5)]))
+
+
+def _down(p, _c):
+    p.drawPolyline(QPolygonF([QPointF(6.5, 9.5), QPointF(12, 15.5),
+                              QPointF(17.5, 9.5)]))
+
+
 def _star(p, c):
     """The members-only mark. Dormant while every tab is free (2026-08-14) —
     kept because `SectionRail` still takes a `premium` set, exactly as the tab
@@ -379,6 +481,7 @@ DRAW = {
     "node_setup": _nodesetup,
     "nodeeditor": _nodeeditor,
     "texmaps": _texmaps,
+    "organize": _organize,
     "madiref": _madiref,
     "optimizer": _optimize,
     "nsfw": _nsfw,
@@ -396,6 +499,18 @@ DRAW = {
     "chevron_down": _chevron_down,
     "chevron_right": _chevron_right,
     "star": _star,
+    # Organize's object-type glyphs and its two star states.
+    "ob_armature": _ob_armature,
+    "ob_mesh": _ob_mesh,
+    "ob_light": _ob_light,
+    "ob_camera": _camera,
+    "ob_empty": _ob_empty,
+    "solo": _solo,
+    "solo_off": _solo_off,
+    "cursor": _cursor,
+    "warn": _warn,
+    "up": _up,
+    "down": _down,
     "appmark": _appmark,
     "win_min": _win_min,
     "win_max": _win_max,

@@ -87,18 +87,23 @@ TEXT_HEAD = "#a3acb9"
 
 # Outer (toolset section) tab bar — Marty's colours, picked 2026-08-04 through
 # Developer mode: edit. The strip is darker than the panels so the tabs read as
-# a header rather than as part of the page, the selected tab lifts out of it,
-# and NSFW Tools is tinted so it is findable at a glance.
+# a header rather than as part of the page, and the selected tab lifts out of it.
 TAB_BG = "#161414"
 TAB_BG_SELECTED = "#2b2b2b"
+# ⚠ KEPT THOUGH NOTHING USES IT AS A TINT ANY MORE. It is still the pink Marty
+# picked, and `app_theme_test` reads it; the tint it fed is gone (below).
 TAB_LAST = "#9c4071"
 
-# ⚠ TINTED BY NAME, NOT BY POSITION. This used to be `QTabBar::tab:last` in the
-# QSS below, because Qt stylesheets have no per-index tab selector — which meant
-# the colour followed whichever tab was last rather than following NSFW Tools.
-# The tab order changed on 2026-08-04 and the pink would have moved to Rendering
-# by itself. `main.SectionTabBar` paints these, so the order is free to change.
-TAB_TINTS = {"NSFW Tools": TAB_LAST}
+# ⚠⚠ **EMPTY SINCE 2026-08-18 — NSFW TOOLS IS NO LONGER TINTED.** Marty: *"make
+# NSFW Tools tab look like the rest of the items on the menu (so no pink
+# background)"*. The mechanism stays because it is the RIGHT mechanism and the
+# next tint will want it: entries are tinted BY NAME, not by position. It began
+# life as `QTabBar::tab:last` in the QSS — Qt has no per-index tab selector — so
+# the colour followed whichever tab happened to be last, and when the order
+# changed on 2026-08-04 the pink would have wandered onto Rendering by itself.
+# `widgets.SectionRail` paints these from the CANONICAL title, so both the
+# order and the displayed label are free to change.
+TAB_TINTS = {}
 
 # The little star on every members-only tab (Marty, 2026-08-04) — so it is
 # obvious which tabs come with supporting, before anyone clicks one and finds a
@@ -399,6 +404,18 @@ QPushButton#accent {{
     background: {ACCENT}; border: none; color: white; font-weight: bold;
 }}
 QPushButton#accent:hover {{ background: {shade(ACCENT, 1.18)}; }}
+/* ⚠⚠ A DISABLED ACCENT BUTTON MUST LOOK DISABLED, AND IT DID NOT.
+   `QPushButton#accent` is an ID selector, so it outranks the generic
+   `QPushButton:disabled {{ color }}` above — a greyed-out accent button kept
+   full accent blue and white bold text, i.e. looked completely pressable.
+   Spotted on Organize's Isolate button with no set selected (2026-08-18);
+   it was never specific to that tab. Every accent button in the app was
+   affected: the Studio Library's Apply, the Render Queue's Start, Node
+   Setup's Build. Both properties have to be restated here, because
+   specificity is per-property. */
+QPushButton#accent:disabled {{
+    background: {shade(ACCENT, 0.42)}; color: {TEXT_DIM}; font-weight: bold;
+}}
 QPushButton#flat {{ background: transparent; border: none; padding: 4px 8px; }}
 QPushButton#flat:hover {{ background: {PANEL2}; }}
 QPushButton#danger {{

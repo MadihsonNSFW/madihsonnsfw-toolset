@@ -99,10 +99,14 @@ SECTION_META = {
     "Node Setup": ("node_setup", "Nodes"),
     "Node Editor": ("nodeeditor", "Nodes"),
     "Texture Maps": ("texmaps", "Nodes"),
+    "Organize": ("organize", "Scene"),
     "MadiRef": ("madiref", "Scene"),
     "Optimization": ("optimizer", "Scene"),
-    "NSFW Tools": ("nsfw", "Scene"),
     "Physics": ("physics", "Scene"),
+    # ⚠ LAST, and that is deliberate (Marty, 2026-08-18: "move it to the
+    # bottom of the list"). It is the one tab you might not want a colleague
+    # to walk past, so it is out of the run of everyday scene tools.
+    "NSFW Tools": ("nsfw", "Scene"),
     "What's New": ("news", ""),
 }
 
@@ -4242,6 +4246,7 @@ class MainWindow(QMainWindow):
         self.nodeeditor = None
         self.madiref = None
         self.texmaps = None
+        self.organize = None
         self.picker = None
         self.picker_tabs_tool = None
         self.picker_buttons_tool = None
@@ -4623,6 +4628,10 @@ class MainWindow(QMainWindow):
         # Texture Maps (2026-08-17). A LAZY tab: it owns an OpenGL context and
         # a set of shaders, and nobody should pay for either at startup.
         ("texmaps", "Texture Maps"),
+        # Organize (2026-08-18) - object sets + Isolate. LAZY, and for a
+        # different reason from Texture Maps: it POLLS Blender while it is on
+        # screen, and a tab nobody has opened must not be talking to Blender.
+        ("organize", "Organize"),
         # ⚠ THE FOUR PAID TABS WERE ALL FREED 2026-08-14 (Marty: "make all
         # tabs free" — the pivot: every tool free for everyone, and premium
         # pose/animation PACKS become the paid thing, gated SERVER-SIDE by
@@ -4633,8 +4642,9 @@ class MainWindow(QMainWindow):
         # (2026-08-11, "Make MadiRef paywalled"), free again with the rest.
         ("madiref", "MadiRef"),
         ("optimizer", "Optimization"),
-        ("nsfw", "NSFW Tools"),
         ("physics", "Physics"),
+        # LAST in the rail, and the tab strip behind it, since 2026-08-18.
+        ("nsfw", "NSFW Tools"),
     )
 
     # ⚠ EMPTY SINCE 2026-08-14 — every tab is free (Marty: "make all tabs
@@ -4656,7 +4666,7 @@ class MainWindow(QMainWindow):
     # build's PYZ — PyInstaller collects function-level imports, but that is
     # proved there, never assumed. NOT a licensing mechanism: LockedPage/GATED
     # is that; this is purely "don't build what nobody is looking at".
-    LAZY_TOOLS = {"anim_layers", "texmaps"}
+    LAZY_TOOLS = {"anim_layers", "texmaps", "organize"}
 
     def _ensure_tab_built(self, index):
         """Build a lazy tab the first time it lands on screen.
@@ -4860,7 +4870,7 @@ class MainWindow(QMainWindow):
         creates an OpenGL context and compiles a dozen fragment shaders; at
         startup that would be paid by everyone who never opens it. The
         imports are INSIDE the function for the same reason (PERF_PLAN
-        option D) - and `tools\verify_exe.py` pins the modules in the frozen
+        option D) - and `tools\\verify_exe.py` pins the modules in the frozen
         build's PYZ, because PyInstaller collecting a function-level import
         is something to prove rather than assume.
 
@@ -4872,6 +4882,24 @@ class MainWindow(QMainWindow):
 
         self.texmaps = texmapsmod.TexMapsPage(self.bridge, self)
         return self.texmaps
+
+    def _build_organize(self):
+        """Organize - object sets saved in the .blend, and Isolate
+        (2026-08-18, `docs\\organize.md`).
+
+        ⚠ **LAZY, and for a reason Texture Maps does not share: this tab
+        POLLS.** It asks Blender for `sets_list` every 1.5 s while it is on
+        screen. A tab nobody has opened must not be holding a conversation
+        with Blender, and `showEvent`/`hideEvent` on the page are what start
+        and stop the timer - which only work if the page is built when it is
+        first shown. The import is inside the function for the same reason as
+        the other lazy tabs (PERF_PLAN option D), and `tools\verify_exe.py`
+        pins the module in the frozen build's PYZ.
+        """
+        import organize as organizemod
+
+        self.organize = organizemod.OrganizePage(self.bridge, self)
+        return self.organize
 
     def _build_physics(self):
         # Bone Jiggle — spring-driven secondary motion on bones. The tool
@@ -5196,7 +5224,7 @@ class MainWindow(QMainWindow):
         is still usable when it is not."""
         pages = [self.rendering, self.node_setup, self.anim_layers, self.physics,
                  self.picker, self.optimizer, self.nsfw, self.nodeeditor,
-                 self.madiref, self.texmaps]
+                 self.madiref, self.texmaps, self.organize]
         return [self.tabs.widget(i) for i in range(self.tabs.count())] + \
                [page for page in pages if page is not None]
 

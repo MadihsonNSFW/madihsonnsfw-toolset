@@ -95,6 +95,7 @@ nav:
       - Node Setup: tabs/node-setup.md
       - Node Editor: tabs/node-editor.md
       - Texture Maps: tabs/texture-maps.md
+      - Organize: tabs/organize.md
       - MadiRef: tabs/madiref.md
       - Optimization: tabs/optimization.md
       - Physics: tabs/physics.md

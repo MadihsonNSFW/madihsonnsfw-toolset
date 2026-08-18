@@ -5,13 +5,60 @@ drives it over a small local bridge, so your tools stop competing with the
 viewport for screen space. A few parts (the render queue, the library browser,
 importing) work with Blender closed entirely.
 
-**Twelve tabs, and every one of them is free.** Nothing in the Toolset needs a
+**Thirteen tabs, and every one of them is free.** Nothing in the Toolset needs a
 licence, an account, or an internet connection. It is open source, and the
 Toolset makes **no network connections at all**.
 
 ---
 
 ## Update notes
+
+### 1.23.0 - Organize: sets of objects, and one key to see just them
+
+A new tab under Scene. Pick some objects in Blender, press **New set from
+selection**, and you have a named set - a rig with its meshes, the lights for
+a shot, the props on a table. Press **Isolate** and the viewport shows only
+that set, exactly as if you had selected it and pressed **/**. Press it again
+to come back out.
+
+- **The sets live inside your .blend.** Rename the file, rename the objects,
+  send it to someone else - the sets travel with it. Nothing is stored in the
+  app.
+- **It is in Blender too.** The same list, with the same isolate star on each
+  row, is in the sidebar (N key) under **MadihsonNSFW ▸ Organize**. Change it
+  in either place and the other follows.
+- **Isolate is Blender's Local View** - the same thing as selecting the set
+  and pressing **/**. Nothing in your scene is hidden or changed, and your
+  renders are untouched; it is only what the viewport is showing. Press it
+  again to come back out.
+- **Nothing is lost when an object goes.** Delete an object that is in a set
+  and the set says so, with a Clean button, rather than quietly forgetting it.
+- **Select in Blender** selects the whole set and makes its rig active.
+
+**Also in this release:**
+
+- **NSFW Tools is no longer pink**, and it has moved to the bottom of the
+  list. It looks like every other tool now.
+- **The Texture Maps chips were redrawn.** Each tick sits inside its own chip,
+  the chip you are looking at is outlined rather than filled, and the row
+  wraps onto a second line instead of squashing the view buttons when the
+  window is narrow.
+- **Greyed-out blue buttons now look greyed out.** A disabled accent button -
+  Apply in the library, Start in the render queue, Build in Node Setup - kept
+  its full colour and looked pressable.
+
+### (folded in) 1.22.1 - Texture Maps: the map chips look like what they are
+
+The row of map chips above the preview was drawn wrong: each tick appeared
+to float outside its own chip, the selected chip turned into a solid blue
+block that swallowed its tick, and on a narrower window the view buttons were
+crushed into "Sp…re" and "Al…p".
+
+- **One box per chip, tick inside it.** The chip you are looking at is now a
+  tinted chip with a blue outline, so the tick stays readable on it, and the
+  view buttons on the right keep their full names at every window size.
+- **The row wraps instead of shrinking.** Make the window narrow and the chips
+  move to a second line; nothing is squeezed, cut off, or scrolled.
 
 ### 1.22.0 - Texture Maps: a photo becomes a material
 

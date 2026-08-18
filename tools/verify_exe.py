@@ -341,7 +341,9 @@ MARKERS = [
     # pack that 8d501dbd… was. ⚠ Verified LF-clean before pinning: every text
     # file under `blender_addon\` was checked for CRLF, because that is what
     # moved this hash the last time (see the block above the desktop markers).
-    ("addon_bundle", "183298fb0141cf96", True),
+    ("addon_bundle", "6703b5ae7f1b8221", True),
+    ("addon_bundle", "e9a0ef4eb63a3462", False),
+    ("addon_bundle", "183298fb0141cf96", False),
     ("addon_bundle", "d254f571ec21de73", False),
     # ⚠ The Quadify-LESS bundle, pinned absent: a build made from source that
     # still has the removal would ship an app with a Quadify tab whose Blender
@@ -535,10 +537,24 @@ MARKERS = [
     # lost these would offer the picker and then fail on the call.
     ("bridge", "texmaps_scene", True),
     ("bridge", "tex_export", True),
+    # --- Organize (1.23.0) ------------------------------------------------
+    # ⚠ Imported INSIDE `_build_organize`, like the texmaps three. This tab
+    # POLLS, so a build where it is missing does not merely look broken — it
+    # dies on first open for everyone.
+    ("organize", "OrganizePage", True),
+    ("organize", "SetsTree", True),
+    ("bridge", "organize_sets", True),
+    ("bridge", "sets_isolate", True),
+    ("bridge", "0.51.0", True),
+    # ⚠⚠ "0.50.0" STAYS A PRESENCE MARKER, and pinning it absent was a real
+    # mistake caught by the first 1.23.0 build. It is not merely the previous
+    # EXPECTED_ADDON_VERSION — it is also the **since_version of the
+    # `texmaps_scene` feature requirement**, so it is a legitimate string in
+    # `bridge.py` forever. This is precisely the "0.40.0" case documented a
+    # few lines down, made again by rote: **before adding an absence twin,
+    # grep the version out of `app\bridge.py` and check it is not somebody's
+    # since_version.**
     ("bridge", "0.50.0", True),
-    # ⚠ The version this REPLACED, pinned absent — the pair moves together
-    # every time EXPECTED_ADDON_VERSION does, or a stale build passes.
-    ("bridge", "0.49.0", False),
     # --- the desktop surface ----------------------------------------------
     # ⚠ These three outlived the cancelled port (2026-08-17) because they are
     # worth having on Windows alone: `desktop.py` is the ONE place the app asks
@@ -789,7 +805,7 @@ def main():
     for lazy in ("anim_layers", "markers",
                  # Texture Maps (2026-08-17): three modules behind one
                  # function-level import, and the tab is dead without any.
-                 "texmaps", "texmaps_gl", "texmaps_source"):
+                 "texmaps", "texmaps_gl", "texmaps_source", "organize"):
         if lazy in pyz.toc:
             print("ok   lazy module %-12s is in the frozen PYZ" % lazy)
         else:

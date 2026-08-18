@@ -859,6 +859,41 @@ class BridgeServer:
         if cmd == "tex_export":
             from . import texmaps
             return texmaps.tex_export(p.get("image"), p.get("path"))
+        # ---- Organize: object sets + Isolate (`docs\organize.md`) --------
+        # ⚠ `sets_list` is POLLED and is a PURE READ. Everything below it
+        # writes, and each one returns the new `revision` so the app can
+        # ignore the poll answer that crossed with it.
+        if cmd == "sets_list":
+            from . import organize
+            return organize.sets_list(bool(p.get("include_scene")))
+        if cmd == "sets_new":
+            from . import organize
+            return organize.sets_new(p.get("name"),
+                                     bool(p.get("from_selection", True)))
+        if cmd == "sets_delete":
+            from . import organize
+            return organize.sets_delete(p.get("uid"))
+        if cmd == "sets_rename":
+            from . import organize
+            return organize.sets_rename(p.get("uid"), p.get("name"))
+        if cmd == "sets_move":
+            from . import organize
+            return organize.sets_move(p.get("uid"), p.get("delta", -1))
+        if cmd == "sets_add":
+            from . import organize
+            return organize.sets_add_selected(p.get("uid"), p.get("names"))
+        if cmd == "sets_remove":
+            from . import organize
+            return organize.sets_remove(p.get("uid"), p.get("names"))
+        if cmd == "sets_clean":
+            from . import organize
+            return organize.sets_clean(p.get("uid"))
+        if cmd == "sets_select":
+            from . import organize
+            return organize.sets_select(p.get("uid"), bool(p.get("extend")))
+        if cmd == "sets_isolate":
+            from . import organize
+            return organize.sets_isolate(p.get("uid"))
         if cmd == "anim_layers_add":
             return core.al_add_layer(
                 data_type=p.get("data_type", "OBJECT"),
