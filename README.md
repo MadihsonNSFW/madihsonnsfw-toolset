@@ -90,7 +90,7 @@ See **[Building from source](https://madihsonnsfw.github.io/madihsonnsfw-toolset
 powershell -ExecutionPolicy Bypass -File tests\run_all.ps1
 ```
 
-81 suites, roughly 4,475 checks. Set `$env:MADI_BLENDER` if your Blender is not
+87 suites, roughly 4,790 checks. Set `$env:MADI_BLENDER` if your Blender is not
 where the runner expects. See
 **[Running the tests](https://madihsonnsfw.github.io/madihsonnsfw-toolset/testing/)**.
 
