@@ -68,6 +68,6 @@ quietly missing a feature.
 | `app/` | The desktop application |
 | `blender_addon/madi_anim_library/` | The Blender extension |
 | `manual/` | This documentation |
-| `tests/` | 81 suites — see [Running the tests](testing.md) |
+| `tests/` | 87 suites — see [Running the tests](testing.md) |
 | `tools/` | Build, verification and packaging helpers |
 | `specs/` | Asset specifications compiled into the app |

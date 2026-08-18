@@ -1,8 +1,9 @@
 # MadihsonNSFW Toolset
 
 A desktop companion for Blender: a pose and animation library, a render queue
-that works with Blender closed, a 2D bone picker, animation layers, video
-reference in the viewport, scene optimisation, texture baking and rig tools —
+that works with Blender closed, a 2D bone picker, animation layers, PBR maps
+from a photo, object sets with one-key isolate, video reference in the
+viewport, scene optimisation, texture baking and rig tools — **thirteen tabs**
 in one window that talks to Blender over a local connection.
 
 Every tool is free, the source is here under GPL-3.0, and the app makes **no
@@ -83,6 +84,18 @@ They speak over TCP on **port 9877**, on your own machine and nowhere else.
 
     A node canvas for texture baking, driving Blender's own bake operator.
 
+-   **[Texture Maps](tabs/texture-maps.md)**
+
+    One photo — or a texture already in your scene — becomes a full PBR set:
+    normal, roughness, AO, height, metallic, bump and a seamless tile. On your
+    own GPU, about six milliseconds a map.
+
+-   **[Organize](tabs/organize.md)**
+
+    Name sets of objects — a rig with its meshes, the lights for a shot — and
+    show just one of them with a single press. The sets are saved inside your
+    `.blend`.
+
 -   **[MadiRef](tabs/madiref.md)**
 
     Video reference playing in the viewport and in the app at once,
@@ -111,7 +124,7 @@ They speak over TCP on **port 9877**, on your own machine and nowhere else.
 - **[Building from source](building.md)** — run it from a checkout, build the exe.
 - **[The bridge protocol](bridge.md)** — how the two halves talk, and how to add
   a command.
-- **[Running the tests](testing.md)** — 81 suites, roughly 4,475 checks.
+- **[Running the tests](testing.md)** — 87 suites, roughly 4,790 checks.
 - **[Contributing](contributing.md)**
 
 ---

@@ -3,7 +3,9 @@
 Ready-made MADI rigs, built into your scene in one click.
 
 This tab is adult-oriented in intent; the rig itself is a general-purpose
-geometry-node deformer.
+geometry-node deformer. It sits **last in the sidebar**, below Physics, and
+looks like every other entry — it used to be tinted pink, which made it the
+one thing on screen that announced itself.
 
 ---
 

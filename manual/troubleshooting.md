@@ -40,6 +40,19 @@ It cannot, any more — there are no locks. If you see wording like that, you ar
 running an add-on older than 0.47.0 alongside a newer app. Press
 **⚙ Settings ▸ Update add-on**.
 
+**A tab is greyed out and says it needs a newer add-on**
+
+That is the compatibility check working, not a bug. Some tabs need their
+Blender half:
+
+| Tab | Needs | What you lose without it |
+|---|---|---|
+| **Organize** | add-on **0.51.0** | the whole tab — sets live in the `.blend` and Isolate is a Blender view mode, so there is nothing it can do alone |
+| **Texture Maps** | add-on **0.50.0** | only the **Blender scene** picker. The tab still makes maps from a file on disk with Blender closed |
+
+**⚙ Settings ▸ Update add-on** installs the version the app carries. If the
+button seems to do nothing, see *"The add-on will not update"* above.
+
 ---
 
 ## Performance
