@@ -454,6 +454,79 @@ def _down(p, _c):
                               QPointF(17.5, 9.5)]))
 
 
+# ---- Rig properties: Blender's keyframe decorators, and the transport ----
+# ⚠ The three diamond states are the SAME SHAPE deliberately, so a row's state
+# reads as a fill, not as a different glyph — that is how Blender's own
+# decorator column works and it is the only part of it people already know.
+def _diamond():
+    return QPolygonF([QPointF(12, 4.5), QPointF(19.5, 12),
+                      QPointF(12, 19.5), QPointF(4.5, 12)])
+
+
+def _key_off(p, _c):
+    """Not animated — hollow (Blender's DECORATE_ANIMATE)."""
+    p.drawPolygon(_diamond())
+
+
+def _key_anim(p, c):
+    """Animated, but no key on THIS frame — hollow with a centre dot."""
+    p.drawPolygon(_diamond())
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawEllipse(QPointF(12, 12), 2.3, 2.3)
+
+
+def _key_on(p, c):
+    """Keyed on this frame — filled (DECORATE_KEYFRAME)."""
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawPolygon(_diamond())
+
+
+def _key_prev(p, c):
+    p.drawLine(QPointF(6, 6.5), QPointF(6, 17.5))
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawPolygon(QPolygonF([QPointF(17.5, 6.5), QPointF(9, 12),
+                             QPointF(17.5, 17.5)]))
+
+
+def _key_next(p, c):
+    p.drawLine(QPointF(18, 6.5), QPointF(18, 17.5))
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawPolygon(QPolygonF([QPointF(6.5, 6.5), QPointF(15, 12),
+                             QPointF(6.5, 17.5)]))
+
+
+def _cross(p, _c):
+    p.drawLine(QPointF(7.5, 7.5), QPointF(16.5, 16.5))
+    p.drawLine(QPointF(16.5, 7.5), QPointF(7.5, 16.5))
+
+
+def _reset(p, c):
+    p.drawArc(QRectF(5.5, 5.5, 13, 13), 40 * 16, 280 * 16)
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawPolygon(QPolygonF([QPointF(14.5, 3.5), QPointF(19.5, 8),
+                             QPointF(13.5, 9.5)]))
+
+
+def _follow(p, c):
+    """Follow the active rig: a cursor with a ring."""
+    p.setPen(Qt.NoPen)
+    p.setBrush(c)
+    p.drawPolygon(QPolygonF([QPointF(5, 4), QPointF(15.5, 11),
+                             QPointF(10.8, 12), QPointF(13.4, 17),
+                             QPointF(11.4, 18), QPointF(8.9, 13.2),
+                             QPointF(5, 16.4)]))
+    p.setBrush(Qt.NoBrush)
+    pen = QPen(QColor(c), STROKE)
+    pen.setCapStyle(Qt.RoundCap)
+    p.setPen(pen)
+    p.drawArc(QRectF(14, 13, 6.5, 6.5), 0, 360 * 16)
+
+
 def _star(p, c):
     """The members-only mark. Dormant while every tab is free (2026-08-14) —
     kept because `SectionRail` still takes a `premium` set, exactly as the tab
@@ -509,6 +582,15 @@ DRAW = {
     "solo_off": _solo_off,
     "cursor": _cursor,
     "warn": _warn,
+    # Rig properties: the keyframe decorators and its transport.
+    "key_off": _key_off,
+    "key_anim": _key_anim,
+    "key_on": _key_on,
+    "key_prev": _key_prev,
+    "key_next": _key_next,
+    "cross": _cross,
+    "reset": _reset,
+    "follow": _follow,
     "up": _up,
     "down": _down,
     "appmark": _appmark,

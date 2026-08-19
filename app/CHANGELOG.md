@@ -13,6 +13,43 @@ Toolset makes **no network connections at all**.
 
 ## Update notes
 
+### 1.24.0 - Rig properties: drive and key a rig's morphs from the app
+
+The Organize tab is now two pages: **Isolate** (everything it did before) and
+a new **Rig properties**. Click a rig and every custom property it carries -
+Daz morphs, controllers, switches - is listed as a channel: its value, and
+where its keyframes sit on the timeline.
+
+- **Filter and sort hundreds of properties.** Type to search, or narrow to
+  **Animated**, **Keyed here** or **Non-zero**. A Daz character carries around
+  775 of these; finding the four you want was the whole problem.
+- **Drag any value** and the rig moves in Blender as you drag - or
+  **double-click it and type an exact number**. Typing can go outside the
+  slider's range, the way Blender's own fields do.
+- **Keyframe from the app.** The diamond at the end of a row inserts a key on
+  the current frame, or deletes the one already there. Select several rows and
+  **Key**, **Delete key**, **Delete all keys** or **Reset** them together.
+- **See where the keys are.** Every row draws its keyframes on the scene's
+  frame range, with the playhead marked. Click a diamond in a strip to jump
+  there, or use the arrows either side of the frame number to step from key to
+  key.
+- **It follows the rig you click** in Blender, or pin one with the picker.
+- Colours match Blender's own: green means the property is animated, yellow
+  means it is keyed on the frame you are on.
+
+⚠ **Update the Blender add-on for this one** (⚙ Settings ▸ **Update add-on**).
+The tab needs add-on **0.52.1**; on an older one it greys itself and says so,
+and nothing else is affected.
+
+**Also in this release:**
+
+- **Tools now grey out while Blender is rendering.** Every tool that lives on
+  a left-hand rail - the layer stack, Bone Jiggle, the render tools - stayed
+  fully clickable during a render and quietly did nothing. They disable
+  properly now.
+- **Drawn icons follow a theme change.** Switching theme left every drawn
+  button glyph in the old palette until the tab was rebuilt.
+
 ### 1.23.0 - Organize: sets of objects, and one key to see just them
 
 A new tab under Scene. Pick some objects in Blender, press **New set from

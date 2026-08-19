@@ -894,6 +894,35 @@ class BridgeServer:
         if cmd == "sets_isolate":
             from . import organize
             return organize.sets_isolate(p.get("uid"))
+        # ---- Rig properties (`docs\rigprops.md`) -------------------------
+        # ⚠ `rig_props_list` is POLLED and is a PURE READ. It is also the one
+        # route in the add-on that answers DIFFERENTLY depending on what the
+        # caller says it already has (`shape` / `revision`) — the full answer
+        # for a Daz rig is 97 KB and almost every poll is identical.
+        if cmd == "rig_props_list":
+            from . import rigprops
+            return rigprops.rig_props_list(p.get("rig"), p.get("shape"),
+                                           p.get("revision"),
+                                           bool(p.get("full")))
+        if cmd == "rig_props_set":
+            from . import rigprops
+            return rigprops.rig_props_set(p.get("rig"), p.get("name"),
+                                          p.get("value"))
+        if cmd == "rig_props_key":
+            from . import rigprops
+            return rigprops.rig_props_key(p.get("rig"), p.get("names"),
+                                          p.get("frame"))
+        if cmd == "rig_props_unkey":
+            from . import rigprops
+            return rigprops.rig_props_unkey(p.get("rig"), p.get("names"),
+                                            p.get("frame"),
+                                            bool(p.get("whole")))
+        if cmd == "rig_props_reset":
+            from . import rigprops
+            return rigprops.rig_props_reset(p.get("rig"), p.get("names"))
+        if cmd == "rig_props_frame":
+            from . import rigprops
+            return rigprops.rig_props_frame(p.get("frame"))
         if cmd == "anim_layers_add":
             return core.al_add_layer(
                 data_type=p.get("data_type", "OBJECT"),

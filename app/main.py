@@ -4895,10 +4895,25 @@ class MainWindow(QMainWindow):
         first shown. The import is inside the function for the same reason as
         the other lazy tabs (PERF_PLAN option D), and `tools\verify_exe.py`
         pins the module in the frozen build's PYZ.
+
+        ⚠ **TWO PAGES ON A RAIL SINCE 1.24.0** (Marty, 2026-08-19: "everything
+        we have now should be inside a 'Isolate' sub page (like we have in
+        anim layers tab) with pages"). The shell is `RenderingPage`, the same
+        one Anim Layers uses — so `set_capture_busy` reaches the tools through
+        it, which is what made the shell's forwarding stub a real bug rather
+        than a latent one.
         """
         import organize as organizemod
+        import rigprops as rigpropsmod
 
-        self.organize = organizemod.OrganizePage(self.bridge, self)
+        page = renderingmod.RenderingPage(self.bridge, self)
+        self.organize_sets = organizemod.OrganizePage(self.bridge, self)
+        page.add_tool(self.organize_sets, "Isolate", group="Organize",
+                      scroll=False)
+        self.rigprops = rigpropsmod.RigPropsPage(self.bridge, self)
+        page.add_tool(self.rigprops, "Rig properties", group="Organize",
+                      scroll=False)
+        self.organize = page
         return self.organize
 
     def _build_physics(self):
@@ -5093,6 +5108,18 @@ class MainWindow(QMainWindow):
             # QWidget rule to paper over a stale palette (PERF_PLAN B).
             theme.apply_app_defaults(app)
             app.setStyleSheet(qss)
+        # ⚠ A REPAINT IS NOT ENOUGH FOR A GLYPH THAT WAS SET ONCE. `update()`
+        # redraws a QPushButton faithfully — including the QIcon it is still
+        # holding, which was painted in the OLD palette. Tools that set a
+        # themed icon in their builder expose `retheme()` to re-ask for it;
+        # until 2026-08-19 nothing called any of them, so Organize's tree
+        # glyphs and every themed button icon on a rail stayed the old colour
+        # until the tab was rebuilt. Same class as the `set_capture_busy` stub
+        # in `rendering.py`, found the same day.
+        for page in self._pages():
+            handler = getattr(page, "retheme", None)
+            if handler is not None:
+                handler()
         for widget in self.findChildren(QWidget):
             widget.update()
         self.update()

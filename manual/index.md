@@ -94,7 +94,10 @@ They speak over TCP on **port 9877**, on your own machine and nowhere else.
 
     Name sets of objects — a rig with its meshes, the lights for a shot — and
     show just one of them with a single press. The sets are saved inside your
-    `.blend`.
+    `.blend`. Its second page, **[Rig properties](tabs/rig-properties.md)**,
+    lists every custom property a rig carries — Daz morphs, controllers,
+    switches — with its value, its keyframes, and one press to key or un-key
+    them.
 
 -   **[MadiRef](tabs/madiref.md)**
 

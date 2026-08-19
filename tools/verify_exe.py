@@ -341,7 +341,11 @@ MARKERS = [
     # pack that 8d501dbd… was. ⚠ Verified LF-clean before pinning: every text
     # file under `blender_addon\` was checked for CRLF, because that is what
     # moved this hash the last time (see the block above the desktop markers).
-    ("addon_bundle", "6703b5ae7f1b8221", True),
+    # 0.52.0 — Rig properties adds one module, so 48 files / 2,729 KB.
+    # ⚠ Verified LF-clean before pinning, as the note above requires.
+    ("addon_bundle", "7bdd871ff2bb3689", True),
+    ("addon_bundle", "b239d3fc209876d7", False),
+    ("addon_bundle", "6703b5ae7f1b8221", False),
     ("addon_bundle", "e9a0ef4eb63a3462", False),
     ("addon_bundle", "183298fb0141cf96", False),
     ("addon_bundle", "d254f571ec21de73", False),
@@ -555,6 +559,30 @@ MARKERS = [
     # grep the version out of `app\bridge.py` and check it is not somebody's
     # since_version.**
     ("bridge", "0.50.0", True),
+    # --- Rig properties (1.24.0) -------------------------------------------
+    # ⚠ The second page of the Organize rail, imported inside
+    # `_build_organize` beside `organize`. It POLLS too, so a build missing it
+    # dies on first open of that rail entry.
+    ("rigprops", "RigPropsPage", True),
+    ("rigprops", "ChannelDelegate", True),
+    # ⚠ The delegate is the tab's whole performance story — 775 rows drawn by
+    # ONE painter rather than 2,325 widgets. Pinning it here means a build
+    # that somehow shipped without it fails the check rather than shipping a
+    # tab that takes seconds to open.
+    ("rigprops", "ChannelTable", True),
+    ("bridge", "rig_props", True),
+    ("bridge", "rig_props_unkey", True),
+    ("bridge", "0.52.1", True),
+    # ⚠ "0.52.0" stays PRESENT too — it is `rig_props`'s since_version, so it
+    # lives in `app\bridge.py` forever even though 0.52.1 is what the app now
+    # expects. The 0.52.1 bump was the REDRAW fix: writes tagged the depsgraph
+    # and asked nothing to repaint, so the viewport showed the old shape.
+    ("bridge", "0.52.0", True),
+    # ⚠ "0.51.0" stays a PRESENCE marker for the same reason "0.50.0" does
+    # above: it is `organize_sets`'s since_version, not merely the previous
+    # expected version. Checked by grepping it out of `app\bridge.py` before
+    # writing this line — which is the rule the comment above asks for.
+    ("bridge", "0.51.0", True),
     # --- the desktop surface ----------------------------------------------
     # ⚠ These three outlived the cancelled port (2026-08-17) because they are
     # worth having on Windows alone: `desktop.py` is the ONE place the app asks
@@ -805,7 +833,10 @@ def main():
     for lazy in ("anim_layers", "markers",
                  # Texture Maps (2026-08-17): three modules behind one
                  # function-level import, and the tab is dead without any.
-                 "texmaps", "texmaps_gl", "texmaps_source", "organize"):
+                 "texmaps", "texmaps_gl", "texmaps_source", "organize",
+                 # Rig properties (2026-08-19) — the Organize rail's second
+                 # page, behind the same function-level import as `organize`.
+                 "rigprops"):
         if lazy in pyz.toc:
             print("ok   lazy module %-12s is in the frozen PYZ" % lazy)
         else:

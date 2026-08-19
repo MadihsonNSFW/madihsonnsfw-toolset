@@ -5,8 +5,8 @@ queue that works with Blender closed, a 2D bone picker, animation layers, video
 reference in the viewport, scene optimisation, texture baking and rig tools — in
 one window that talks to Blender over a local connection.
 
-![app](https://img.shields.io/badge/app-1.23.0-2E6F6A)
-![add-on](https://img.shields.io/badge/add--on-0.51.0-B4651A)
+![app](https://img.shields.io/badge/app-1.24.0-2E6F6A)
+![add-on](https://img.shields.io/badge/add--on-0.52.1-B4651A)
 ![blender](https://img.shields.io/badge/blender-5.x-E87D0D)
 ![python](https://img.shields.io/badge/python-3.10-3776AB)
 ![licence](https://img.shields.io/badge/licence-GPL--3.0-B4487A)
@@ -49,7 +49,7 @@ scroll while a 461-bone rig evaluates next door.
 | **Node Setup** | Relink a node's outgoing wires; set up an image sequence without typing into file fields |
 | **Node Editor** | A node canvas for texture baking, driving Blender's own bake operator |
 | **Texture Maps** | One photo, or a texture out of your scene, becomes a PBR set - normal, roughness, AO, height, metallic, bump and a seamless tiling version, on your GPU |
-| **Organize** | Sets of objects saved in your .blend - a rig with its meshes, the lights for a shot - and one button that shows only that set, in every viewport |
+| **Organize** | Two pages. **Isolate**: sets of objects saved in your .blend - a rig with its meshes, the lights for a shot - and one button that shows only that set. **Rig properties**: every custom property a rig carries as a channel - value, where its keyframes sit on the timeline, and one press to key or un-key |
 | **MadiRef** | Video reference playing in the viewport and in the app at once, frame-matched, with drawn notes |
 | **Optimization** | Camera-measured texture shrinking, managed decimation, quad remeshing, and what is making your `.blend` so big |
 | **Physics** | Spring-driven jiggle on bones, with collision, wind and baking |
@@ -90,7 +90,7 @@ See **[Building from source](https://madihsonnsfw.github.io/madihsonnsfw-toolset
 powershell -ExecutionPolicy Bypass -File tests\run_all.ps1
 ```
 
-87 suites, roughly 4,790 checks. Set `$env:MADI_BLENDER` if your Blender is not
+89 suites, roughly 4,920 checks. Set `$env:MADI_BLENDER` if your Blender is not
 where the runner expects. See
 **[Running the tests](https://madihsonnsfw.github.io/madihsonnsfw-toolset/testing/)**.
 

@@ -212,5 +212,31 @@ class RenderingPage(QWidget):
 
     def set_capture_busy(self, busy):
         """Mirrors LibraryView's API — the window greys every page out while
-        Blender is busy. Tools that hit the bridge should disable here; the
-        shell itself has nothing to disable yet."""
+        Blender is busy.
+
+        ⚠ **THIS FORWARDS TO THE TOOLS, and for years it did not.** It was a
+        docstring and nothing else, so `LayersPage.set_capture_busy` — which
+        exists, and disables the layer stack — was never called: the window
+        held the RenderingPage, the RenderingPage held the tools, and the call
+        stopped at the shell. Found on 2026-08-19 while adding Rig properties,
+        which polls Blender and so must genuinely stop while Blender renders.
+        A tool without the method is skipped, which is why nothing broke
+        loudly and why nobody noticed.
+        """
+        for _title, _group, widget in self._tools:
+            handler = getattr(widget, "set_capture_busy", None)
+            if handler is not None:
+                handler(busy)
+
+    def retheme(self):
+        """Re-tint the tools' drawn glyphs after a theme change.
+
+        ⚠ Same shape as `set_capture_busy` above and found the same day: a
+        tool that sets a themed icon ONCE keeps the old palette's colour after
+        a theme switch, because `icons.clear_cache()` only helps glyphs that
+        are asked for again. The window's repaint does not re-ask.
+        """
+        for _title, _group, widget in self._tools:
+            handler = getattr(widget, "retheme", None)
+            if handler is not None:
+                handler()

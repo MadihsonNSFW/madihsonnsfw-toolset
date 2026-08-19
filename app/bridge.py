@@ -102,7 +102,7 @@ UNREACHABLE_BACKOFF = 30.0
 # update_bridge_status warns when they differ, which catches the "rebuilt the
 # exe but forgot to reinstall the extension" case (and the reverse). Bump it
 # together with blender_manifest.toml whenever new commands land.
-EXPECTED_ADDON_VERSION = "0.51.0"
+EXPECTED_ADDON_VERSION = "0.52.1"
 
 # ---------------------------------------------------------------------------
 # Update safety: a version gap must DEGRADE, never break.
@@ -161,6 +161,10 @@ FEATURE_REQUIREMENTS = {
         "sets_list", "0.51.0",
         "Object sets and Isolate need Blender add-on 0.51.0 or newer — update "
         "the extension from ⚙ Library Settings."),
+    "rig_props": (
+        "rig_props_list", "0.52.0",
+        "Rig properties need Blender add-on 0.52.0 or newer — update the "
+        "extension from ⚙ Library Settings."),
     "nsfw_assets": (
         "asset_build", "0.8.0",
         "Adding the MADI rigs needs Blender add-on 0.8.0 or newer — update the "
@@ -870,6 +874,57 @@ class Bridge:
         ⚠ 60 s: this walks every object and every LayerCollection twice on
         Blender's main thread, and a heavy production scene is real work."""
         return self.request("sets_isolate", {"uid": uid}, timeout=60.0)
+
+    # ---- Rig properties (`docs\rigprops.md`) ----------------------------
+    def rig_props_list(self, rig=None, shape=None, revision=None, full=False):
+        """A rig's custom properties: values, keyframe positions, ranges.
+
+        ⚠ **`shape` and `revision` are what the caller ALREADY HAS**, and
+        sending them is not an optimisation you can skip — the full answer for
+        a Daz rig is 97 KB and this is polled. With a matching `revision` the
+        add-on replies `{"unchanged": True}` in about 60 bytes; with a
+        matching `shape` it sends values and keys but not the 775 rows of
+        ranges and labels. `full=True` asks for everything and re-reads the
+        soft ranges, which nothing else notices changing.
+        """
+        params = {"rig": rig, "full": bool(full)}
+        if shape is not None:
+            params["shape"] = int(shape)
+        if revision is not None:
+            params["revision"] = int(revision)
+        return self.request("rig_props_list", params, timeout=20.0)
+
+    def rig_props_set(self, rig, name, value):
+        """Drive one property. Sent while a slider is dragged, so it is the
+        one write here that has to stay cheap — the add-on tags the object
+        rather than updating the view layer (500× the cost)."""
+        return self.request("rig_props_set",
+                            {"rig": rig, "name": name, "value": value},
+                            timeout=15.0)
+
+    def rig_props_key(self, rig, names, frame=None):
+        """Insert a keyframe on each named property (default: the playhead)."""
+        return self.request("rig_props_key",
+                            {"rig": rig, "names": list(names),
+                             "frame": frame}, timeout=30.0)
+
+    def rig_props_unkey(self, rig, names, frame=None, whole=False):
+        """Delete this frame's key on each named property, or every key it has
+        (`whole`). The VALUE is left where it is either way."""
+        return self.request("rig_props_unkey",
+                            {"rig": rig, "names": list(names),
+                             "frame": frame, "whole": bool(whole)},
+                            timeout=30.0)
+
+    def rig_props_reset(self, rig, names):
+        """Put each named property back to its recorded default."""
+        return self.request("rig_props_reset",
+                            {"rig": rig, "names": list(names)}, timeout=20.0)
+
+    def rig_props_frame(self, frame):
+        """Move the playhead — the key strip's diamonds and the ◀ ▶ buttons."""
+        return self.request("rig_props_frame", {"frame": int(frame)},
+                            timeout=15.0)
 
     def bake_targets(self, mode, material=None, collection=None):
         """What a bake run would cover, without baking (add-on 0.26.0).

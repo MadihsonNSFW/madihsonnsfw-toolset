@@ -33,7 +33,7 @@ Where the rest lives:
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QIcon
-from PySide6.QtWidgets import (QAbstractItemView, QFrame, QHBoxLayout,
+from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout,
                                QGroupBox, QInputDialog, QLabel, QMessageBox,
                                QPushButton, QSizePolicy, QSplitter,
                                QToolButton, QTreeWidget, QTreeWidgetItem,
@@ -187,16 +187,13 @@ class OrganizePage(QWidget):
     # ------------------------------------------------------------- layout
     def _build(self):
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 10, 12, 10)
+        # ⚠ NO MARGINS AND NO TITLE BLOCK SINCE 1.24.0. This page lives inside
+        # a `ToolPage` on the Organize rail now (Isolate | Rig properties),
+        # and ToolPage draws the heading, the rule and the margins. Keeping
+        # its own drew "Organize" under "Isolate" with two rules between them.
+        outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(8)
 
-        head = QLabel(TITLE)
-        head.setObjectName("h1")
-        outer.addWidget(head)
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("color: %s;" % theme.BORDER)
-        outer.addWidget(line)
         self.blurb = widgets.ElidedLabel(
             "Sets of objects — a rig with its meshes, the lights for a shot, "
             "the props on a table. Pick one, select it, or isolate it with "

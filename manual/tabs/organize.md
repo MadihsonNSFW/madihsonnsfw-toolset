@@ -1,5 +1,11 @@
 # Organize
 
+The Organize tab has two pages, listed on the left: **Isolate** — this one —
+and **[Rig properties](rig-properties.md)**, where a rig's morphs and switches
+live.
+
+## Isolate
+
 Group the objects in your scene into named **sets** — a rig with its meshes,
 the lights for a shot, the props on a table — and show just one of them with a
 single button.
