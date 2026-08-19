@@ -47,7 +47,8 @@ Blender half:
 
 | Tab | Needs | What you lose without it |
 |---|---|---|
-| **Organize** | add-on **0.51.0** | the whole tab — sets live in the `.blend` and Isolate is a Blender view mode, so there is nothing it can do alone |
+| **Organize ▸ Isolate** | add-on **0.51.0** | the whole page — sets live in the `.blend` and Isolate is a Blender view mode, so there is nothing it can do alone |
+| **Organize ▸ Rig properties** | add-on **0.52.1** | the whole page — it reads the rig's properties out of the open file and writes them back |
 | **Texture Maps** | add-on **0.50.0** | only the **Blender scene** picker. The tab still makes maps from a file on disk with Blender closed |
 
 **⚙ Settings ▸ Update add-on** installs the version the app carries. If the

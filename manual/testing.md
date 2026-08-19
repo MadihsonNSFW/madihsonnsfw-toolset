@@ -1,6 +1,6 @@
 # Running the tests
 
-**87 suites, roughly 4,790 checks.**
+**89 suites, roughly 4,950 checks.**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests\run_all.ps1

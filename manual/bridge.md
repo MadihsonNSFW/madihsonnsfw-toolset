@@ -3,10 +3,11 @@
 The app drives Blender by sending commands to the add-on over a TCP socket on
 **port 9877**, bound to the loopback interface.
 
-There are **160 commands**, in families named after the tab that uses
+There are **166 commands**, in families named after the tab that uses
 them — `al_*` (Anim Layers), `opt_*` (Optimization), `quad_*` (Quadify),
 `jiggle_*` (Physics), `marker_*`, `madiref_*`, `picker_*`, `tex_*` (Texture
-Maps) and `sets_*` (Organize), plus the library and rendering commands, which
+Maps), `sets_*` (Organize ▸ Isolate) and `rig_props_*` (Organize ▸ Rig
+properties), plus the library and rendering commands, which
 predate the convention and are named for what they do.
 
 ---
@@ -104,8 +105,8 @@ you can watch a long job that is itself holding the queue.
 ## Polled commands are pure reads
 
 Several `*_status` commands are polled continuously by the app, and so are
-`marker_list` and `sets_list` while their tabs are on screen. **They must never
-write.**
+`marker_list`, `sets_list` and `rig_props_list` while their tabs are on
+screen. **They must never write.**
 
 The reason is concrete: a write from a polled command dirties the user's open
 `.blend` simply because the app is running. A status read that quietly creates a
