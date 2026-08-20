@@ -23,10 +23,10 @@ class PhysicsPage(RenderingPage):
         "This tab is the home for rig physics tooling —\n"
         "each tool gets a rail entry on the left and its settings here.")
 
-    def set_capture_busy(self, busy):
-        """Forward to the tools. The base shell has nothing to disable, but a
-        tool that queues work on Blender's main thread must grey out exactly
-        like a capture."""
-        for _title, _group, widget in self._tools:
-            if hasattr(widget, "set_capture_busy"):
-                widget.set_capture_busy(busy)
+    # ⚠ `set_capture_busy` USED TO BE OVERRIDDEN HERE, and this tab was the
+    # only rail whose tools really greyed out while Blender rendered — the
+    # base shell's version was a docstring and nothing else, so Anim Layers,
+    # Rendering and Node Setup silently did not. The base forwards since
+    # 2026-08-19, so this override was an identical second copy: deleted, so
+    # the two cannot drift. `app_rigprops_test.py` holds the base's behaviour
+    # and `app_jiggle_test.py` still holds this tab's.

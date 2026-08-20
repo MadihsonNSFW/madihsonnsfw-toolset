@@ -214,14 +214,21 @@ class RenderingPage(QWidget):
         """Mirrors LibraryView's API — the window greys every page out while
         Blender is busy.
 
-        ⚠ **THIS FORWARDS TO THE TOOLS, and for years it did not.** It was a
-        docstring and nothing else, so `LayersPage.set_capture_busy` — which
-        exists, and disables the layer stack — was never called: the window
-        held the RenderingPage, the RenderingPage held the tools, and the call
-        stopped at the shell. Found on 2026-08-19 while adding Rig properties,
-        which polls Blender and so must genuinely stop while Blender renders.
-        A tool without the method is skipped, which is why nothing broke
-        loudly and why nobody noticed.
+        ⚠ **THIS FORWARDS TO THE TOOLS, and it did not until 2026-08-19.**
+        It was a docstring and nothing else, so the call stopped at the shell:
+        the window held the RenderingPage, the RenderingPage held the tools.
+        `LayersPage.set_capture_busy` exists, disables the layer stack, and had
+        never once been called.
+
+        ⚠ **`PhysicsPage` was the exception** — it overrode this method and
+        forwarded, so the Physics tab really did grey out. That override is
+        deleted now that the base does the job, so there is ONE implementation
+        rather than two that can drift. Anim Layers, Rendering and Node Setup
+        are the rails that were silently not greying.
+
+        Found while adding Rig properties, which polls Blender and so must
+        genuinely stop while Blender renders. A tool without the method is
+        skipped, which is why nothing broke loudly.
         """
         for _title, _group, widget in self._tools:
             handler = getattr(widget, "set_capture_busy", None)

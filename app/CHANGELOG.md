@@ -43,10 +43,10 @@ and nothing else is affected.
 
 **Also in this release:**
 
-- **Tools now grey out while Blender is rendering.** Every tool that lives on
-  a left-hand rail - the layer stack, Bone Jiggle, the render tools - stayed
-  fully clickable during a render and quietly did nothing. They disable
-  properly now.
+- **More tools grey out while Blender is rendering.** The tools on the Anim
+  Layers, Rendering and Node Setup rails stayed fully clickable during a
+  render and quietly did nothing. They disable properly now. (The Physics tab
+  already behaved.)
 - **Drawn icons follow a theme change.** Switching theme left every drawn
   button glyph in the old palette until the tab was rebuilt.
 
