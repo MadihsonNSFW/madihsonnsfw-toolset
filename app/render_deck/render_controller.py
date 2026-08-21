@@ -27,6 +27,10 @@ from .settings import Settings
 _FRA_RE = re.compile(rb"Fra:\s*(\d+)")
 # Within-frame progress. Cycles: "Sample 128/256"; some builds: "128/256 samples".
 _SAMPLE_RE = re.compile(rb"Sample (\d+)/(\d+)|(\d+)/(\d+) samples")
+# Blender prints this once per frame it actually writes to disk — the honest
+# record of work done, unlike the exit code. See `_completed`.
+# ⚠ Video output (FFmpeg) prints NO such line, so zero saves is not a failure.
+_SAVED_RE = re.compile(rb"Saved: '")
 
 # Cap crash auto-resume so a frame that instantly recrashes can't loop forever.
 MAX_RESUME_ATTEMPTS = 20
@@ -50,6 +54,7 @@ class RenderController(QObject):
         self._paused = False
         self._phase = "idle"  # "probe" | "render"
         self._attempt = 0            # crash-resume attempts for the current job
+        self._saved = 0              # frames Blender said it WROTE (see _completed)
         self._resume_from: Optional[int] = None  # frame to restart at after a crash/pause
         self._probe_buf = b""        # probe stdout, parsed once the probe exits
         self._probe_mtime: Optional[float] = None  # .blend mtime when the probe ran
@@ -381,6 +386,11 @@ class RenderController(QObject):
             # across two reads, which a per-chunk search would miss.
             self._probe_buf += data
 
+        if self._phase == "render" and job is not None:
+            # Counted before the frames_total guard — a job whose range was
+            # never probed still needs its saves counted.
+            self._saved += len(_SAVED_RE.findall(data))
+
         if self._phase == "render" and job is not None and job.frames_total:
             changed = False
             for m in _FRA_RE.finditer(data):
@@ -452,9 +462,15 @@ class RenderController(QObject):
             return
 
         if job is not None:
+            rescued = code != 0 and self._completed(job)
+            if rescued:
+                self._emit_log(
+                    f"\n>>> {job.name}: Blender exited with code {code}, but "
+                    f"every frame was rendered ({self._saved} saved / "
+                    f"{job.frames_total} expected) - counting it as finished.\n")
             if self._stopping:
                 job.status = JobStatus.CANCELLED
-            elif code == 0:
+            elif code == 0 or rescued:
                 job.status = JobStatus.DONE
                 job.frames_done = job.frames_total
                 # Bank the final frame's duration (no later Fra: line closes it).
@@ -484,6 +500,33 @@ class RenderController(QObject):
         if proc is not None:
             proc.deleteLater()
         self._next_job()
+
+    def _completed(self, job: RenderJob) -> bool:
+        """Did the render really finish, whatever the exit code says?
+
+        ⚠⚠ **THE EXIT CODE IS NOT THE ANSWER, AND TRUSTING IT SHIPPED A BUG.**
+        Blender routinely returns non-zero after writing every single frame — a
+        crash during teardown, a GPU driver unloading, an add-on raising on
+        quit. A user reported four projects that each "rendered fine to the
+        last frame" and were every one of them flagged **Failed**, then
+        re-rendered from scratch. The old code read `code == 0` and nothing
+        else. **Success is what Blender said it WROTE.** Quadify learned the
+        identical lesson from its engine (`docs\\quadify.md`) — an exit code is
+        a hint, an output is evidence.
+
+        ⚠ **Zero saves is not a failure.** Rendering to a video container
+        prints no `Saved:` line at all, so that case falls back to the frame
+        counter — which is why the two branches are separate and not an `or`.
+        """
+        if self._stopping or self._paused:
+            return False                    # we ended it; that is not success
+        if job.frames_total <= 0:
+            return False
+        if self._saved >= job.frames_total:
+            return True                     # every frame is on disk: certain
+        if self._saved == 0:
+            return job.frames_done >= job.frames_total
+        return False                        # some saved, not all: really short
 
     def _should_resume(self, job: RenderJob) -> bool:
         # Never auto-resume a playblast: restarting mid-range writes a SECOND,

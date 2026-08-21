@@ -781,6 +781,34 @@ class BridgeServer:
         if cmd == "quad_select":
             from . import quadify
             return quadify.quad_select(p.get("object") or "")
+        # Bake a modifier's motion into per-frame shape keys, so the stack is
+        # free for Cloth. ⚠ `bake_status` is a PURE READ and is polled; the
+        # bake itself is the only writer.
+        if cmd == "bake_status":
+            from . import bakedeform
+            return bakedeform.bake_status(p.get("object") or "")
+        if cmd == "bake_to_shape_keys":
+            from . import bakedeform
+            return bakedeform.bake_to_shape_keys(
+                object_name=p.get("object") or "",
+                start=p.get("start"), end=p.get("end"),
+                step=p.get("step", 1), prefix=p.get("prefix") or "Bake",
+                disable_modifiers=p.get("disable_modifiers", True),
+                remove_modifiers=p.get("remove_modifiers", False))
+        # ⚠⚠ DESTRUCTIVE, and the only route here that is. It DEMANDS a name
+        # rather than falling back to the active object like every other route
+        # in this file. A confirmation dialog names a mesh; between the user
+        # pressing Yes and the message landing, Blender's active object can be
+        # something else entirely. The module keeps the active-object fallback
+        # for console use — the network does not get it.
+        if cmd == "bake_clear_keys":
+            from . import bakedeform
+            name = p.get("object") or ""
+            if not name:
+                return {"ok": False, "error":
+                        "name the mesh to clear - this route will not act on "
+                        "whatever happens to be selected"}
+            return bakedeform.clear_shape_keys(name)
         if cmd == "quad_retopologize":
             from . import quadify
             return quadify.retopologize(
@@ -792,7 +820,9 @@ class BridgeServer:
                 symmetry=p.get("symmetry", ""),
                 symmetry_offset=p.get("symmetry_offset", 0.0),
                 replace=p.get("replace", False),
-                settings=p.get("settings") or {})
+                settings=p.get("settings") or {},
+                preserve=p.get("preserve", False),
+                fix_concave=p.get("fix_concave", True))
         if cmd == "opt_status":
             from . import optimizer
             return optimizer.opt_status()

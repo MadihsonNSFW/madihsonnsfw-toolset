@@ -29,6 +29,9 @@ from collections import deque
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel,
                                QPlainTextEdit, QPushButton, QVBoxLayout)
+# Ships with PySide6 — it is the binding layer PySide6 itself is built on, so
+# it is always present and PyInstaller always collects it.
+from shiboken6 import isValid
 
 import widgets
 
@@ -143,6 +146,45 @@ class _Tee(io.TextIOBase):
 
 # One recorder for the whole process.
 BUFFER = LogBuffer()
+
+
+def emit_if_alive(owner, signal, *args):
+    """Emit `signal` unless `owner`'s C++ object has already been destroyed.
+
+    ⚠⚠ **EVERY BACKGROUND WORKER IN THIS APP CAN OUTLIVE ITS OWNER, AND THAT
+    IS BY DESIGN.** They are plain QObjects that spawn a daemon thread —
+    deliberately NOT QThreads, because nothing ever waits on one — so a window,
+    a dialog or a tab is free to be torn down while the thread is still inside
+    its blocking bridge call. Qt then deletes the C++ side of a parented worker
+    along with its parent, while the PYTHON wrapper lives on (the thread's
+    bound `self._run` holds a reference to it). The thread wakes up, emits into
+    a dead object, and dies with:
+
+        RuntimeError: Signal source has been deleted
+
+    printed to stderr by `threading.excepthook`. Nothing is actually broken at
+    that point — the owner is gone and there is nobody left to tell — but a
+    traceback in `tests\\run_all.ps1`'s output is indistinguishable from a real
+    failure, which is how this one was found: intermittently, in the `--smoke`
+    run, when the 1.5 s health probe outlived `main()` (2026-08-21).
+
+    ⚠ **`isValid` ALONE IS NOT ENOUGH.** The owner can go between the check and
+    the emit, and app shutdown is exactly that window — so the emit is wrapped
+    too. Only a RuntimeError raised by an object that is no longer valid is
+    swallowed: anything else came out of a direct-connected slot and is a real
+    error, left to blow up the way it always did.
+
+    Returns True if the signal was actually emitted.
+    """
+    if not isValid(owner):
+        return False
+    try:
+        signal.emit(*args)
+    except RuntimeError:
+        if isValid(owner):
+            raise
+        return False
+    return True
 
 
 class DevConsoleDialog(widgets.GuardedDialog):

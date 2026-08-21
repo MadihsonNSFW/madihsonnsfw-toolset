@@ -5,8 +5,8 @@ queue that works with Blender closed, a 2D bone picker, animation layers, video
 reference in the viewport, scene optimisation, texture baking and rig tools — in
 one window that talks to Blender over a local connection.
 
-![app](https://img.shields.io/badge/app-1.24.0-2E6F6A)
-![add-on](https://img.shields.io/badge/add--on-0.52.1-B4651A)
+![app](https://img.shields.io/badge/app-1.26.1-2E6F6A)
+![add-on](https://img.shields.io/badge/add--on-0.58.0-B4651A)
 ![blender](https://img.shields.io/badge/blender-5.x-E87D0D)
 ![python](https://img.shields.io/badge/python-3.10-3776AB)
 ![licence](https://img.shields.io/badge/licence-GPL--3.0-B4487A)
@@ -90,7 +90,7 @@ See **[Building from source](https://madihsonnsfw.github.io/madihsonnsfw-toolset
 powershell -ExecutionPolicy Bypass -File tests\run_all.ps1
 ```
 
-89 suites, roughly 4,920 checks. Set `$env:MADI_BLENDER` if your Blender is not
+92 suites, roughly 5,150 checks. Set `$env:MADI_BLENDER` if your Blender is not
 where the runner expects. See
 **[Running the tests](https://madihsonnsfw.github.io/madihsonnsfw-toolset/testing/)**.
 

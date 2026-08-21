@@ -23,10 +23,31 @@ these dials do not land in the optimizer's settings, and `BROADCASTS = False`
 because a retopo result is not an optimizer status and fanning it out would
 have five other tools repaint from a dict with none of their keys in it.
 
-⚠ **NO TRANSFER CONTROLS IN THIS BUILD.** UVs, vertex groups and materials are
-the next batch; until the add-on can do it, a tickbox for it would be exactly
-the thing this project criticised QRemeshify for — a control that does nothing.
-The note in the panel says so in as many words.
+⚠ **"Preserve rig data" carries a rig onto the result** (Marty, 2026-08-21):
+deform modifiers, weights, materials, constraints and custom properties. The
+transfer lives in the add-on's `quadpreserve`; this side is a tickbox, a line
+saying what would be carried off the selected rig, and a line saying what
+really was.
+
+⚠⚠ **SHAPE KEYS ARE NOT CARRIED — THEY BAKE INTO THE GEOMETRY** at their
+current values, the way Quad Remesher does it. Resampling them onto new
+topology was built, shipped and removed the same day: it tore a real character
+where the mesh folds back on itself. The panel must say **BAKED IN**, never
+"carried", and must tell the user to set the frame first.
+
+⚠ **UV maps are still NOT transferred, and no control may imply they are.**
+That is the one channel left, and a panel that lists what it does while staying
+quiet about what it does not is exactly the thing this project criticised
+QRemeshify for. The note in the panel says so in as many words.
+
+⚠ **"Fix concave faces" is ON by default** — Surface Deform refuses a target
+containing one, and a quad remesh makes a few every time. It costs the all-quad
+promise (a split concave quad leaves two triangles), so the report says how
+many, counted off the BUILT MESH rather than the engine's face list.
+
+⚠ **The counts come off the SELECTED RIG, not out of prose.** "Preserves
+everything" tells nobody whether their 775 morphs are coming, or how big the
+result will be when they do.
 """
 
 from PySide6.QtCore import Qt, QTimer
@@ -64,9 +85,24 @@ class QuadifyTool(optimizermod._OptimizerTool):
         left.setSpacing(8)
         outer.addLayout(left, 1)
 
+        # ⚠ **THE TARGET IS READ ON `showEvent`, NOT ON A TIMER**, which is the
+        # right call for a reading nothing changes on its own — but it leaves
+        # one real gap: change the selection in Blender while this tool is
+        # already on screen and the label keeps naming the old object. Marty
+        # hit it ("sometimes it doesn't update"). A poll would evaluate the
+        # mesh every tick to keep a label warm, which is exactly what
+        # `quad_status`'s docstring forbids. A button is the honest answer.
+        pick = QHBoxLayout()
         self.target = QLabel("—")
         self.target.setObjectName("dim")
-        left.addWidget(self.target)
+        self.target.setWordWrap(True)
+        self.pick_button = QPushButton("Select mesh")
+        self.pick_button.setToolTip("Take whatever is selected in Blender "
+                                    "right now as the target.")
+        self.pick_button.clicked.connect(self.pick_selected)
+        pick.addWidget(self.target, 1)
+        pick.addWidget(self.pick_button, 0, Qt.AlignTop)
+        left.addLayout(pick)
 
         self.size_warning = QLabel("")
         self.size_warning.setWordWrap(True)
@@ -120,6 +156,23 @@ class QuadifyTool(optimizermod._OptimizerTool):
         quality.addWidget(self.smoothing)
         quality.addStretch(1)
         form.addRow("Quality", quality)
+
+        # ⚠⚠ ON BY DEFAULT, and the default is the point. Blender's Surface
+        # Deform REFUSES a target that contains a concave face - Marty hit it
+        # as "target contains concave polygons" - and a quad remesh makes a
+        # few around its singularities every time. A cage that cannot be bound
+        # to is not a cage. ⚠ It costs the all-quad promise (a split concave
+        # quad leaves two triangles), so the report says how many.
+        fixes = QHBoxLayout()
+        self.fix_concave = QCheckBox("Fix concave faces")
+        self.fix_concave.setChecked(bool(saved.get("fix_concave", True)))
+        self.fix_concave.setToolTip(
+            "Split any concave face on the result. Surface Deform refuses to "
+            "bind to a target that has one, so leave this on if the result "
+            "will drive another mesh.")
+        fixes.addWidget(self.fix_concave)
+        fixes.addStretch(1)
+        form.addRow("Clean up", fixes)
         left.addWidget(shape)
 
         # ---------------------------------------------------------- result
@@ -131,6 +184,23 @@ class QuadifyTool(optimizermod._OptimizerTool):
         self.replace.setChecked(bool(saved.get("replace", False)))
         rlay.addWidget(self.keep_both)
         rlay.addWidget(self.replace)
+
+        # Marty, 2026-08-21: make the result move and behave like the original
+        # — the way a part separated by loose parts still does.
+        self.preserve = QCheckBox("Preserve rig data")
+        self.preserve.setChecked(bool(saved.get("preserve", False)))
+        self.preserve.setToolTip(
+            "Carry the deform modifiers, weights, materials, constraints and "
+            "custom properties onto the result. Shape keys are baked into the "
+            "geometry at their current values rather than carried.")
+        rlay.addWidget(self.preserve)
+        # ⚠ What it will carry, counted off the SELECTED RIG, not described in
+        # the abstract. "Preserves everything" tells nobody whether their 775
+        # morphs are coming; "775 shape keys" does.
+        self.preserve_note = QLabel("")
+        self.preserve_note.setObjectName("dim")
+        self.preserve_note.setWordWrap(True)
+        rlay.addWidget(self.preserve_note)
         left.addWidget(result)
 
         # ----------------------------------------------------- fine tuning
@@ -219,7 +289,8 @@ class QuadifyTool(optimizermod._OptimizerTool):
         self.clusters.valueChanged.connect(self._save)
         for box in (self.use_sharp, self.preprocess, self.smoothing,
                     self.align_sing, self.repeat_quads, self.repeat_ngons,
-                    self.repeat_align, self.replace):
+                    self.repeat_align, self.replace, self.preserve,
+                    self.fix_concave):
             box.toggled.connect(self._save)
         for box in self.symmetry.values():
             box.toggled.connect(self._save)
@@ -261,9 +332,21 @@ class QuadifyTool(optimizermod._OptimizerTool):
         self.select_button.clicked.connect(self._select_result)
         lay.addWidget(self.select_button)
 
-        # Honest about what is not built yet, rather than a dead tickbox.
-        pending = QLabel("UVs, vertex groups and materials are not carried "
-                         "over yet — that is the next batch.")
+        # ⚠ What the LAST run carried, when it was asked to. Hidden otherwise,
+        # so an untouched panel never implies a transfer happened.
+        self.preserved_note = QLabel("")
+        self.preserved_note.setObjectName("dim")
+        self.preserved_note.setWordWrap(True)
+        self.preserved_note.hide()
+        lay.addWidget(self.preserved_note)
+
+        # Still honest about the one channel that is genuinely not built.
+        # Weights, shape keys and materials arrived with "Preserve rig data"
+        # on 2026-08-21; UVs did not, and a panel that lists what it does
+        # while staying quiet about what it does not is the thing this project
+        # criticised QRemeshify for.
+        pending = QLabel("UV maps are not carried over — a retopologised mesh "
+                         "normally wants unwrapping again anyway.")
         pending.setObjectName("dim")
         pending.setWordWrap(True)
         lay.addWidget(pending)
@@ -299,6 +382,8 @@ class QuadifyTool(optimizermod._OptimizerTool):
             smoothing=self.smoothing.isChecked(),
             symmetry=self._symmetry_axes(),
             replace=self.replace.isChecked(),
+            preserve=self.preserve.isChecked(),
+            fix_concave=self.fix_concave.isChecked(),
             tuning=self.tuning.isChecked(),
             isometry_bias=self.isometry_bias.value(),
             ngon_regularity_weight=self.ngon_weight.value(),
@@ -337,6 +422,11 @@ class QuadifyTool(optimizermod._OptimizerTool):
         if not isinstance(status, dict):
             return
         self._quad = dict(status)
+        # ⚠ BEFORE the early returns below, not after. Both of them leave the
+        # panel on screen, and a "would carry 775 shape keys" line left over
+        # from the last rig while nothing is selected is a number describing
+        # an object that is not the target.
+        self._sync_preserve(status)
         if not status.get("engine_ready"):
             missing = ", ".join(status.get("engine_missing") or ["engine"])
             self.target.setText("The retopology engine is missing (%s). "
@@ -374,6 +464,92 @@ class QuadifyTool(optimizermod._OptimizerTool):
             self.size_warning.hide()
         self.run_button.setEnabled(True)
 
+    def _sync_preserve(self, status):
+        """Say what "Preserve rig data" would carry off THIS rig.
+
+        ⚠ **Counted, never described.** "Preserves everything" tells nobody
+        whether their 775 morphs are coming and how big the result will be;
+        "775 shape keys" does. The three numbers are plain `len()` calls in
+        `quad_status`, so the poll stays as cheap as it was.
+
+        ⚠ It also names the one thing that is honestly missing. UVs are still
+        not transferred, and a panel that lists what it does while staying
+        quiet about what it does not is the thing this project criticised
+        QRemeshify for.
+        """
+        if not status.get("object") or not status.get("engine_ready"):
+            # Nothing selected, or no engine to run at all — either way this
+            # line would be describing something that is not the target.
+            self.preserve_note.setText("")
+            return
+        keys = int(status.get("shape_keys") or 0)
+        groups = int(status.get("vertex_groups") or 0)
+        deform = status.get("deform_modifiers") or []
+        if not (keys or groups or deform):
+            self.preserve_note.setText(
+                "Nothing to carry — this mesh has no weights, shape keys or "
+                "deform modifiers.")
+            return
+        bits = []
+        if deform:
+            bits.append("%d deform modifier%s" % (len(deform),
+                                                  "" if len(deform) == 1
+                                                  else "s"))
+        if groups:
+            bits.append("%s vertex group%s" % ("{:,}".format(groups),
+                                               "" if groups == 1 else "s"))
+        text = ("Would carry %s, plus materials, constraints and custom "
+                "properties. Weights are resampled onto the new topology, so "
+                "they are close but not exact. UVs are not carried."
+                % ", ".join(bits))
+        if keys:
+            # ⚠ The Basis is not a morph; counting it reads as one too many.
+            # And this is the sentence that has to be unmistakable: the morphs
+            # do not come with the mesh, they come INSIDE it.
+            morphs = max(0, keys - 1)
+            text += (" ⚠ Its %s shape key%s will be BAKED IN at their current "
+                     "values — set the frame you want first. The result will "
+                     "have no shape keys of its own."
+                     % ("{:,}".format(morphs), "" if morphs == 1 else "s"))
+        self.preserve_note.setText(text)
+
+    def pick_selected(self):
+        """Take Blender's selection as the target, right now — the button.
+
+        ⚠ **When the active object is not a mesh, this MAKES the selected mesh
+        active rather than quietly aiming at it.** `quad_status` reads
+        `active_object`, and its deep triangle count is measured on that one
+        object, so pointing the run somewhere the count was never taken from
+        would put a number on the label belonging to a different mesh. This
+        module has been bitten by a lying count once already (2 424 shown,
+        266 469 remeshed). `quad_select` already selects and activates, so the
+        second reading is honestly about the object that will be remeshed.
+        """
+        reason = self.feature_reason()
+        if reason:
+            self.target.setText(reason)
+            self.run_button.setEnabled(False)
+            self._fail(reason)
+            return
+        try:
+            status = self.bridge.quad_status(deep=True)
+            if not (status or {}).get("object"):
+                meshes = (status or {}).get("selected") or []
+                if meshes:
+                    self.bridge.quad_select(meshes[0])
+                    status = self.bridge.quad_status(deep=True)
+        except Exception as exc:                # noqa: BLE001 - dead bridge
+            self.target.setText("Blender is not connected.")
+            self.run_button.setEnabled(False)
+            self._fail(exc)
+            return
+        self.apply_quad_status(status)
+        name = (status or {}).get("object")
+        if name:
+            self._ok("Target is %s." % name)
+        else:
+            self._ok("Nothing is selected in Blender.")
+
     def showEvent(self, event):
         super().showEvent(event)
         self.refresh()
@@ -390,6 +566,8 @@ class QuadifyTool(optimizermod._OptimizerTool):
             "smoothing": self.smoothing.isChecked(),
             "symmetry": self._symmetry_axes(),
             "replace": self.replace.isChecked(),
+            "preserve": self.preserve.isChecked(),
+            "fix_concave": self.fix_concave.isChecked(),
         }
         if self.tuning.isChecked():
             params["settings"] = {
@@ -496,13 +674,60 @@ class QuadifyTool(optimizermod._OptimizerTool):
             bits.append("%d n-gons" % reply["ngons"])
         if not reply.get("smoothed") and self.smoothing.isChecked():
             bits.append("smoothing did not run")
+        # ⚠ Say it. The panel promises quads; when the concave clean-up has
+        # traded a few for triangles, the two numbers must not disagree in
+        # silence.
+        if reply.get("concave_split"):
+            bits.append("%d concave faces split" % reply["concave_split"])
         self.report_note.setText("; ".join(bits) if bits
                                  else "All quads. Nothing to flag.")
+        self._show_preserved(reply)
         self.rows["quad_pct"].setStyleSheet(
             "" if float(reply.get("quad_pct") or 0) >= 100.0
             else "color: %s;" % theme.TEXT)
         self.select_button.setEnabled(bool(reply.get("object")))
         self._ok("Made %s." % reply.get("object", "a new object"))
+
+    def _show_preserved(self, reply):
+        """What the run really carried — read off the reply, like every other
+        number in this panel.
+
+        ⚠ **A preserve that failed must not read as one that was not asked
+        for.** The transfer runs after the retopology and is caught separately
+        in the add-on, precisely so a bad transfer does not cost a mesh that
+        took minutes — which means "no rig data" and "the rig data broke" are
+        different outcomes and have to look different.
+        """
+        if not reply.get("preserve"):
+            self.preserved_note.hide()
+            return
+        report = reply.get("preserved") or {}
+        self.preserved_note.show()
+        if not report.get("ok"):
+            self.preserved_note.setStyleSheet("color: #e06c60;")
+            self.preserved_note.setText(
+                "Rig data was NOT carried: %s"
+                % (report.get("error") or "; ".join(report.get("notes") or [])
+                   or "unknown reason"))
+            return
+        self.preserved_note.setStyleSheet("")
+        bits = []
+        if report.get("groups"):
+            bits.append("%d groups" % report["groups"])
+        if report.get("baked_keys"):
+            bits.append("%d shape keys baked in" % report["baked_keys"])
+        if report.get("drivers"):
+            bits.append("%d drivers" % report["drivers"])
+        if report.get("modifiers"):
+            bits.append("%d modifiers" % len(report["modifiers"]))
+        text = "Carried: %s." % ", ".join(bits) if bits \
+            else "Nothing needed carrying."
+        for note in (report.get("notes") or []):
+            text += " ⚠ %s." % note
+        if report.get("skipped"):
+            text += " Left behind (already baked into the mesh): %s." \
+                % ", ".join(report["skipped"])
+        self.preserved_note.setText(text)
 
     def _select_result(self):
         name = (self._last or {}).get("object")

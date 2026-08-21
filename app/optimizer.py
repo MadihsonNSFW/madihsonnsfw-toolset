@@ -99,6 +99,11 @@ class _Runner(QObject):
     Same shape as the Physics tab's worker: the signals are emitted from the
     thread and Qt queues them back onto the GUI thread, so nothing here touches
     a widget off-thread.
+
+    ⚠ It is PARENTED (several tools also hold it in `self._runner` to keep the
+    Python side alive), and nothing waits on its thread — so it can outlive its
+    owner, and both emits go through `dev_console.emit_if_alive`. See that
+    function: the same shape printed a shutdown traceback out of `main.py`.
     """
 
     done = Signal(object)
@@ -117,16 +122,16 @@ class _Runner(QObject):
         except bridgemod.BridgeError as exc:
             dev_console.BUFFER.add("ERROR",
                                    "Optimizer bridge call failed: %s" % exc)
-            self.failed.emit(str(exc))
+            dev_console.emit_if_alive(self, self.failed, str(exc))
         except Exception as exc:      # noqa: BLE001
             # A worker thread dying silently is exactly what the console is for;
             # sys.excepthook does not cover threads.
             dev_console.BUFFER.add(
                 "CRIT", "Unexpected error in an optimizer worker:\n%s"
                 % traceback.format_exc())
-            self.failed.emit(str(exc))
+            dev_console.emit_if_alive(self, self.failed, str(exc))
         else:
-            self.done.emit(result)
+            dev_console.emit_if_alive(self, self.done, result)
 
 
 class ProgressRow(QWidget):
@@ -1658,6 +1663,13 @@ class _ScanWorker(QObject):
     has already collected is a crash. So the owner holds it until `retired`
     fires, which is the LAST thing `_run` does — by the time the slot runs on
     the GUI thread, the thread has returned and the object is safe to drop.
+
+    ⚠ Being parentless is ALSO what makes it the one worker here that could
+    never hit the deleted-owner emit: with no parent, nothing but Python owns
+    its C++ side, and the running thread's bound `self._run` keeps that alive.
+    Its emits still go through `dev_console.emit_if_alive` so the rule holds
+    everywhere without an exception to remember — but the reason it is safe is
+    the line above, not the guard.
     """
 
     done = Signal(object)
@@ -1680,24 +1692,26 @@ class _ScanWorker(QObject):
         try:
             result = blendsize.scan(
                 self.path,
-                progress=lambda done, total: self.progress.emit(done, total),
+                progress=lambda done, total: dev_console.emit_if_alive(
+                    self, self.progress, done, total),
                 should_cancel=lambda: self._cancel)
         except blendsize.BlendSizeError as exc:
             if not self._cancel:
-                self.failed.emit(str(exc))
+                dev_console.emit_if_alive(self, self.failed, str(exc))
         except Exception as exc:        # noqa: BLE001
             dev_console.BUFFER.add(
                 "CRIT", "Unexpected error reading a .blend:\n%s"
                 % traceback.format_exc())
-            self.failed.emit("Could not read that .blend: %s" % exc)
+            dev_console.emit_if_alive(
+                self, self.failed, "Could not read that .blend: %s" % exc)
         else:
             if not self._cancel:
-                self.done.emit(result)
+                dev_console.emit_if_alive(self, self.done, result)
         finally:
             # LAST statement in the thread, always reached — a cancelled or
             # failed scan has to release its worker exactly like a good one, or
             # cancelling repeatedly is its own slow leak.
-            self.retired.emit(self)
+            dev_console.emit_if_alive(self, self.retired, self)
 
 
 class _ShareBar(QStyledItemDelegate):

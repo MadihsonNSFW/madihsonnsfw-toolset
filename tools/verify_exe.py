@@ -343,7 +343,21 @@ MARKERS = [
     # moved this hash the last time (see the block above the desktop markers).
     # 0.52.0 — Rig properties adds one module, so 48 files / 2,729 KB.
     # ⚠ Verified LF-clean before pinning, as the note above requires.
-    ("addon_bundle", "7bdd871ff2bb3689", True),
+    # 0.55.0 - Quadify's preserve adds `quadpreserve.py`, so 49 files.
+    # ⚠ A NEW ADD-ON FILE MOVES THIS HASH *AND* NEEDS `pack_addon.py`
+    # re-run: `addon_bundle.py` carries an explicit FILES list, and a module
+    # missing from it ships an add-on whose `quadify` import fails outright.
+    # 0.56.0 - adds `bakedeform.py`, so 50 files.
+    # 0.57.0 - "Delete all shape keys" adds a ROUTE, not a file: still
+    # 50 files, but the hash moves because `server.py` and
+    # `bakedeform.py` both changed.
+    # 0.58.0 - the Quadify read crash fix: `new_from_object` instead of
+    # `to_mesh()`. No new file, so still 50 - only the hash moves.
+    ("addon_bundle", "54932b2d97de30ac", True),
+    ("addon_bundle", "9015c8cad34d540e", False),
+    ("addon_bundle", "e387f17ccb5e70fb", False),
+    ("addon_bundle", "69515f50c272c5ed", False),
+    ("addon_bundle", "7bdd871ff2bb3689", False),
     ("addon_bundle", "b239d3fc209876d7", False),
     ("addon_bundle", "6703b5ae7f1b8221", False),
     ("addon_bundle", "e9a0ef4eb63a3462", False),
@@ -516,6 +530,13 @@ MARKERS = [
     ("quadify", "Retopologising", True),
     ("quadify", "quad_progress", True),
     ("optimizer", "quad_progress", True),
+    # --- Bake to shape keys (2026-08-21) ----------------------------------
+    # ⚠ The delete button is a WHOLE CONTROL, not a tweak: a build that froze
+    # an older `bakedeform.py` would show the Bake tool looking completely
+    # normal with no way back out of a bake. Both halves are pinned — the
+    # button's own label and the route it calls.
+    ("bakedeform", "Delete all shape keys", True),
+    ("bakedeform", "bake_clear_keys", True),
     # --- Texture Maps (2026-08-17) ----------------------------------------
     # ⚠⚠ **THE LAZY-TAB TRAP, AND THIS TAB IS THE WORST CASE FOR IT.** Its
     # three modules are imported INSIDE `_build_texmaps` (PERF_PLAN option D),
@@ -572,7 +593,25 @@ MARKERS = [
     ("rigprops", "ChannelTable", True),
     ("bridge", "rig_props", True),
     ("bridge", "rig_props_unkey", True),
-    ("bridge", "0.52.1", True),
+    ("bridge", "0.58.0", True),
+    # ⚠ "0.57.0" grepped out of `app\bridge.py` before flipping
+    # this, as the rule requires - it was only ever the expected version.
+    ("bridge", "0.57.0", False),
+    # ⚠ "0.56.0" is ABSENT for the same reason "0.55.0" is below: it
+    # was only ever the expected version, never a since_version, so
+    # bumping removed its last mention from `app\bridge.py` -
+    # grepped to confirm before flipping this.
+    ("bridge", "0.56.0", False),
+    # ⚠ "0.55.0" is ABSENT for the same reason "0.52.1" is: it was only ever
+    # the expected version, never a since_version, so bumping removed its
+    # last mention from `app\bridge.py` - grepped to confirm.
+    ("bridge", "0.55.0", False),
+    # ⚠⚠ "0.52.1" is now ABSENT, and that is the check working. It was only
+    # ever `EXPECTED_ADDON_VERSION`, never a since_version, so bumping the
+    # expectation to 0.55.0 removed its last mention from `appridge.py`
+    # entirely - grepped to confirm before flipping this, which is the rule
+    # the notes below ask for.
+    ("bridge", "0.52.1", False),
     # ⚠ "0.52.0" stays PRESENT too — it is `rig_props`'s since_version, so it
     # lives in `app\bridge.py` forever even though 0.52.1 is what the app now
     # expects. The 0.52.1 bump was the REDRAW fix: writes tagged the depsgraph

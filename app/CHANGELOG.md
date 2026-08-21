@@ -13,6 +13,112 @@ Toolset makes **no network connections at all**.
 
 ## Update notes
 
+### 1.26.1 - Fixes a Blender crash in Quadify
+
+**Retopologize could crash Blender on a character with shape keys.** If the
+mesh had shape keys *and* a modifier that changes the vertex count - a
+Subdivision, most often - reading it could take Blender down with no warning
+and no save. That is every Daz character.
+
+It was not reliable enough to notice: the same mesh could be retopologised ten
+times and fail on the eleventh, because of what the bad read happened to land
+on. It is fixed properly rather than made rarer - Quadify now reads the mesh in
+a way that never touches shape keys at all.
+
+- **It is also faster.** On the character it was found on, reading the mesh
+  went from 1.32 s to 0.33 s, because most of that time was spent copying 436
+  shape keys that the retopologiser never wanted.
+- Nothing about the result changes: same geometry, same settings, same report.
+
+**Closing the app mid-task no longer prints a crash trace.** If a
+background job was still talking to Blender when the window closed, the
+app reported it as an unexpected error even though nothing had gone
+wrong. It now exits quietly.
+
+### 1.26.0 - A way back out of a bake
+
+**Delete all shape keys** - a new button in the Bake to shape keys tool, under
+its own heading with the key count beside it. It removes every shape key on the
+mesh, Basis included, along with the keyframes that drive them.
+
+It exists because a bake you are not happy with was otherwise a dead end. Baked
+every 5th frame and wanted every frame? Delete the keys, switch the modifier
+back on, bake again. Baking a second time *without* deleting stacks a new set of
+keys on top of the old ones.
+
+- **It asks first**, naming the mesh and how many keys are about to go.
+- **It stays available on a mesh you have just baked.** The bake switches the
+  modifiers off, so there is nothing left to bake - and that is exactly when
+  you are most likely to want the keys gone.
+- **Object mode only**, the same as Blender's own shape key controls.
+- **The mesh returns to its base shape**, because Basis goes too. After a bake
+  that is the shape you retopologised and nothing moves; on a mesh whose Basis
+  you sculpted, it is a visible jump, so the confirmation says so.
+- **If two objects share a mesh, both lose their keys** - shape keys belong to
+  the mesh, not the object. The panel says how many objects that is before you
+  press it.
+
+### 1.25.0 - Quadify keeps your rig, and a cage you can simulate
+
+**Bake deformation to shape keys** - a new tool under Quadify. If a mesh is
+being moved by a modifier (a Surface Deform following a character, say), this
+freezes that motion into one shape key per frame over the scene's frame range
+and switches the modifier off. Shape keys are evaluated *before* modifiers, so
+the result is a mesh that moves exactly as it did with **the whole modifier
+stack free** - which is what you need to put Cloth on it.
+
+- **It uses Blender's own frame range**, shown in the panel, so there is
+  nothing here that can disagree with your scene.
+- **It tells you the cost before you press it** - how many keys, and how much
+  memory, because one key holds a whole copy of the mesh.
+- **The modifiers are switched off, not deleted**, so you can turn them back on
+  and bake again with a different range. There is a tickbox if you want them
+  gone.
+- It refuses, with a reason, if a modifier changes the vertex count - a shape
+  key cannot hold a different topology.
+
+**Fix concave faces** - a new tickbox in Quadify, on by default. Surface Deform
+refuses to bind to a mesh that has a concave face, and a quad remesh makes a
+few every time. This splits them so the result can be used to drive another
+mesh. It costs a handful of quads (a split concave quad leaves two triangles)
+and the report says exactly how many.
+
+**The cage workflow, end to end:** retopologise on the frame you want with
+*Preserve rig data* **off**, put a Surface Deform on the result so it follows
+the original, then bake it to shape keys. On a real character that tracked the
+original with 183x less drift than transferring the rig data, and with no
+stretched faces at all.
+
+### (folded in) 1.25.0 - Quadify keeps your rig
+
+Retopologising a character used to hand back a clean mesh with nothing attached
+to it - no weights, no morphs, no armature. Two additions to the **Quadify**
+tool in the Optimization tab.
+
+- **Select mesh.** A button next to the target name that takes whatever is
+  selected in Blender right now. The target used to be read only when you
+  switched to the tool, so changing selection while it was already on screen
+  left the old object named there.
+- **Preserve rig data.** Tick it and the result comes back wearing the
+  original's rig: its deform modifiers (Armature included), vertex groups,
+  materials, constraints and custom properties. It moves and deforms like the
+  mesh it replaced.
+- **Shape keys are BAKED IN, not carried.** The result is the shape you were
+  looking at when you pressed the button, the way Quad Remesher does it - so
+  **set the frame you want first**. The new mesh has no shape keys of its own.
+- **The pose is not baked.** The retopology is taken with the deform stack
+  switched off, so a posed character comes back at rest and its armature drives
+  it properly instead of the pose being applied twice.
+- **It says what it carried, what it baked and what it did not.** The report
+  counts the groups, drivers and modifiers that really landed, how many shape
+  keys were baked in, and names any modifier it deliberately left behind
+  because it was already part of the mesh. Before you run, the panel tells you
+  what is there - "170 vertex groups, 775 shape keys will be baked in" rather
+  than a promise.
+- Weights are **resampled** onto the new topology, so they are close rather
+  than exact; a character will still want a weight cleanup pass. **UV maps are
+  not carried** - a retopologised mesh normally wants unwrapping again.
+
 ### 1.24.0 - Rig properties: drive and key a rig's morphs from the app
 
 The Organize tab is now two pages: **Isolate** (everything it did before) and

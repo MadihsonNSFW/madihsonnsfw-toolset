@@ -26,6 +26,8 @@ import time
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QImage, QPainter
 
+import dev_console
+
 from . import notes as _notes
 from . import proxy as _proxy
 from . import shm as _shm
@@ -274,7 +276,13 @@ class ReferencePlayer(QObject):
         # draws notes over its own preview so it can show the stroke being
         # dragged; handing it a copy that already had them painted in would
         # double every line, softly, along its antialiased edges.
-        self.frame_ready.emit(index, img)
+        #
+        # ⚠ `_serve` runs on the decoder thread as well as on the GUI thread,
+        # and the player is parented to the tab — so the guard. This one never
+        # printed a traceback only because `_loop` swallows every exception:
+        # a dead owner would have made it spin and retry for as long as the
+        # thread lived, rather than stop serving. See dev_console.emit_if_alive.
+        dev_console.emit_if_alive(self, self.frame_ready, index, img)
         return True
 
     # ------------------------------------------------- notes (2026-08-12)

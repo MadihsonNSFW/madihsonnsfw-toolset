@@ -58,6 +58,7 @@ import nsfw as nsfwmod
 import optimizer as optimizermod
 import physics as physicsmod
 import picker as pickermod
+import bakedeform as bakedeformmod
 import quadify as quadifymod
 import render_presets
 import render_tools
@@ -149,7 +150,11 @@ class CaptureWorker(QObject):
     """Runs capture_preview on a daemon thread so the app stays responsive.
     Blender itself is still busy playing the range through the viewport —
     only the app side is unblocked. Signals are emitted from the worker
-    thread and auto-queued onto the Qt main thread."""
+    thread and auto-queued onto the Qt main thread.
+
+    ⚠ Both emits go through `dev_console.emit_if_alive`: this worker is
+    PARENTED and nothing waits on its thread, so it can outlive its owner.
+    See that function for what happens when it does."""
 
     done = Signal(object)   # bridge result dict
     failed = Signal(str)
@@ -174,15 +179,21 @@ class CaptureWorker(QObject):
                 r = self.bridge.capture_preview(self.path, frames=self.frames,
                                                 shape_steps=self.shape_steps)
         except bridgemod.BridgeError as exc:
-            self.failed.emit(str(exc))
+            dev_console.emit_if_alive(self, self.failed, str(exc))
         else:
-            self.done.emit(r)
+            dev_console.emit_if_alive(self, self.done, r)
 
 
 class BridgeWorker(QObject):
     """Runs ONE blocking bridge call on a daemon thread (same deal as
     CaptureWorker — Blender is busy either way, only the app stays alive).
-    Used for alembic export/import, which can take a while on heavy caches."""
+    Used for alembic export/import, which can take a while on heavy caches.
+
+    ⚠⚠ THIS IS THE ONE THAT WAS PRINTING A TRACEBACK. `update_bridge_status`
+    parents a worker to the MainWindow for a 1.5 s health probe; in `--smoke`
+    the window is destroyed the instant `main()` returns, so whenever the probe
+    was still in flight the emit landed on a deleted object. Hence
+    `dev_console.emit_if_alive` on both emits."""
 
     done = Signal(object)
     failed = Signal(str)
@@ -199,16 +210,16 @@ class BridgeWorker(QObject):
             r = self.fn()
         except bridgemod.BridgeError as exc:
             dev_console.BUFFER.add("ERROR", "Bridge call failed: %s" % exc)
-            self.failed.emit(str(exc))
+            dev_console.emit_if_alive(self, self.failed, str(exc))
         except Exception as exc:      # noqa: BLE001 - a worker thread dying
             # silently is exactly the kind of "it just didn't work" the console
             # exists for; sys.excepthook doesn't cover threads.
             dev_console.BUFFER.add(
                 "CRIT", "Unexpected error in a bridge worker:\n%s"
                 % traceback.format_exc())
-            self.failed.emit(str(exc))
+            dev_console.emit_if_alive(self, self.failed, str(exc))
         else:
-            self.done.emit(r)
+            dev_console.emit_if_alive(self, self.done, r)
 
 
 class VersionsDialog(widgets.GuardedDialog):
@@ -4979,6 +4990,13 @@ class MainWindow(QMainWindow):
         # See docs\quadify.md.
         self.quadify_tool = quadifymod.QuadifyTool(self.bridge, self)
         page.add_tool(self.quadify_tool, "Quadify", group="Optimize")
+        # ⚠ Directly under Quadify because it is the SECOND HALF of one
+        # workflow (Marty, 2026-08-21): retopologise a character on the current
+        # frame, let a Surface Deform make the cage follow it, then bake that
+        # motion into shape keys so the modifier stack is free for Cloth.
+        self.bakedeform_tool = bakedeformmod.BakeDeformTool(self.bridge, self)
+        page.add_tool(self.bakedeform_tool, bakedeformmod.TITLE,
+                      group="Optimize")
         self.optimizer_restore_tool = optimizermod.RestoreTool(self.bridge, self)
         page.add_tool(self.optimizer_restore_tool, "Restore",
                       group="Maintenance")
@@ -4997,7 +5015,8 @@ class MainWindow(QMainWindow):
         # re-broadcasts, so six open tools still cost one round trip per tick.
         for tool in (self.optimizer_fixed_tool, self.optimizer_meshes_tool,
                      self.optimizer_restore_tool, self.optimizer_memory_tool,
-                     self.optimizer_filesize_tool, self.quadify_tool):
+                     self.optimizer_filesize_tool, self.quadify_tool,
+                     self.bakedeform_tool):
             self.optimizer_adaptive_tool.status_refreshed.connect(
                 tool.apply_status)
         self.optimizer = page

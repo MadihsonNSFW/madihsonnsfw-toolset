@@ -127,7 +127,7 @@ They speak over TCP on **port 9877**, on your own machine and nowhere else.
 - **[Building from source](building.md)** — run it from a checkout, build the exe.
 - **[The bridge protocol](bridge.md)** — how the two halves talk, and how to add
   a command.
-- **[Running the tests](testing.md)** — 89 suites, roughly 4,950 checks.
+- **[Running the tests](testing.md)** — 92 suites, roughly 5,090 checks.
 - **[Contributing](contributing.md)**
 
 ---

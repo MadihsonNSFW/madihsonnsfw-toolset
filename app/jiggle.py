@@ -54,7 +54,11 @@ class _Worker(QObject):
 
     A local copy of main.BridgeWorker for the same reason physics.py has one:
     importing it from main.py would be circular. A bake steps the whole frame
-    range twice, so it cannot run on the GUI thread."""
+    range twice, so it cannot run on the GUI thread.
+
+    ⚠ Being a copy, it inherits the copy's hazard too: parented, nothing waits
+    on the thread, so it can outlive its owner. Both emits go through
+    `dev_console.emit_if_alive` — see that function."""
 
     done = Signal(object)
     failed = Signal(str)
@@ -71,14 +75,14 @@ class _Worker(QObject):
             r = self.fn()
         except bridgemod.BridgeError as exc:
             dev_console.BUFFER.add("ERROR", "Jiggle bridge call failed: %s" % exc)
-            self.failed.emit(str(exc))
+            dev_console.emit_if_alive(self, self.failed, str(exc))
         except Exception as exc:      # noqa: BLE001
             dev_console.BUFFER.add(
                 "CRIT", "Unexpected error in a jiggle worker:\n%s"
                 % traceback.format_exc())
-            self.failed.emit(str(exc))
+            dev_console.emit_if_alive(self, self.failed, str(exc))
         else:
-            self.done.emit(r)
+            dev_console.emit_if_alive(self, self.done, r)
 
 
 class BoneJiggleTool(QWidget):

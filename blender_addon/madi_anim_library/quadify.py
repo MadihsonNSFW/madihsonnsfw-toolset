@@ -66,6 +66,8 @@ import threading
 import time
 import uuid
 
+from . import quadpreserve
+
 # Stage one's second argument: 2 = detect feature lines from the angle
 # threshold. Stage two's is the quantisation method upstream's README uses.
 _STAGE1_MODE = "2"
@@ -134,6 +136,15 @@ def quad_status(deep=False):
         out.update({"object": ob.name, "verts": len(ob.data.vertices),
                     "faces": len(ob.data.polygons),
                     "modifiers": len(ob.modifiers)})
+        # What "Preserve rig data" would actually have to carry. All three are
+        # plain len() on data already in memory, so the cheap poll stays cheap.
+        keys = ob.data.shape_keys
+        out.update({
+            "shape_keys": len(keys.key_blocks) if keys else 0,
+            "vertex_groups": len(ob.vertex_groups),
+            "deform_modifiers": [m.name for m in ob.modifiers
+                                 if m.type in quadpreserve.DEFORM_TYPES],
+        })
         if deep:
             try:
                 depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -247,14 +258,48 @@ def quad_progress():
 
 def _evaluated_bmesh(ob, depsgraph):
     """The object as it renders — modifiers and shape keys applied — in its own
-    space, with rotation and scale baked in and location left alone."""
+    space, with rotation and scale baked in and location left alone.
+
+    ⚠⚠ **`new_from_object`, NOT `to_mesh()`, AND THAT CHOICE IS A CRASH FIX
+    (2026-08-21).** Marty's Blender died on Retopologize with
+    EXCEPTION_ACCESS_VIOLATION inside `BM_mesh_bm_from_me`. The cause is a real
+    inconsistency in what `to_mesh()` hands back: on a mesh with shape keys and
+    a topology-changing modifier, **the evaluated mesh keeps the ORIGINAL Key**.
+    Measured on his character: `to_mesh()` returned **296,474 vertices carrying
+    436 key blocks of 18,675 elements each**. `bm.from_mesh` copies shape-key
+    data per vertex, so it walks 296,474 vertices through arrays of 18,675 and
+    reads **277,799 vertices past the end of all 436 of them**.
+
+    ⚠⚠ **THE OVERRUN HAPPENS ON EVERY RUN; ONLY THE CRASH IS OCCASIONAL.** An
+    out-of-bounds READ faults only when nothing is mapped after the allocation,
+    so the same file, same object and same code survived eight reads in one
+    process and died on the first in another. "It worked when I tried it" means
+    nothing here — which is why the regression check asserts the SHAPE OF THE
+    DATA (no shape-key layers) instead of that a call returned. A survival
+    check would have passed while the bug shipped.
+
+    `bpy.data.meshes.new_from_object(..., preserve_all_data_layers=False)`
+    hands back the same geometry (296,474 verts / 295,848 faces, identical)
+    with **no shape keys at all** — which is right for this module twice over:
+    Quadify triangulates and writes an OBJ, so it never wanted them. Measured
+    on that mesh it is also **4× faster** — 0.33 s against 1.32 s — because
+    copying 436 layers was most of the work.
+
+    ⚠ It is a REAL datablock with no users, not a borrowed temporary, so it
+    must be removed — in a `finally`, because a raise here would otherwise leak
+    a 296,474-vertex mesh into the .blend.
+    """
     ob_eval = ob.evaluated_get(depsgraph)
-    mesh = ob_eval.to_mesh()
+    mesh = bpy.data.meshes.new_from_object(
+        ob_eval, preserve_all_data_layers=False, depsgraph=depsgraph)
+    if mesh is None:
+        raise RuntimeError("'%s' evaluates to nothing that can be meshed"
+                           % ob.name)
     bm = bmesh.new()
     try:
         bm.from_mesh(mesh)
     finally:
-        ob_eval.to_mesh_clear()
+        bpy.data.meshes.remove(mesh)
 
     # Strip the translation and apply what is left. Every rotation mode is
     # already baked into this matrix — see the module docstring.
@@ -477,7 +522,8 @@ def _run_stage(argv, cwd, log):
 def retopologize(object_name=None, density=1.0, sharp_angle=35.0,
                  use_sharp=True, preprocess=True, smoothing=True,
                  symmetry="", symmetry_offset=0.0, replace=False,
-                 settings=None, scene=None):
+                 settings=None, scene=None, preserve=False,
+                 fix_concave=True):
     """START a retopology. Returns as soon as the mesh is on disk.
 
     ⚠⚠ **THIS DOES NOT BLOCK, AND THAT IS THE WHOLE POINT.** It used to run the
@@ -512,9 +558,26 @@ def retopologize(object_name=None, density=1.0, sharp_angle=35.0,
         return {"ok": False, "error": "select a mesh object"}
 
     _progress_begin(ob.name)
+    # ⚠⚠ **WITH `preserve` ON, THE READ HAPPENS WITH THE DEFORM STACK OFF.**
+    # `_evaluated_bmesh` reads the object as it RENDERS, so retopologising a
+    # posed character bakes the pose into the geometry — and then copying the
+    # Armature modifier back applies it a second time. Measured: as wrong as
+    # having no armature at all, to four decimals. `rest_state` neutralises
+    # exactly the modifiers that will be copied back, and records which, so
+    # `_finish` copies what was really turned off rather than guessing again
+    # minutes later. See `quadpreserve`.
+    disabled, skipped = [], []
+    matrix = ob.matrix_world.copy()
+    matrix.translation = mathutils.Vector((0.0, 0.0, 0.0))
     try:
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-        bm = _evaluated_bmesh(ob, depsgraph)
+        with quadpreserve.rest_state(ob, enabled=bool(preserve)) as rest:
+            # ⚠ The depsgraph is re-got INSIDE the rest state. Getting it
+            # first hands back an evaluation of the stack we just switched off.
+            bpy.context.view_layer.update()
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            bm = _evaluated_bmesh(ob, depsgraph)
+            disabled = list(rest.disabled)
+            skipped = list(rest.skipped)
         try:
             if symmetry:
                 _bisect(bm, symmetry.lower(), symmetry_offset)
@@ -544,6 +607,9 @@ def retopologize(object_name=None, density=1.0, sharp_angle=35.0,
            "source": ob.name, "symmetry": symmetry,
            "symmetry_offset": symmetry_offset, "replace": replace,
            "verts_in": verts_in, "faces_in": faces_in,
+           "preserve": bool(preserve), "fix_concave": bool(fix_concave),
+           "disabled": disabled,
+           "skipped": skipped, "matrix": matrix,
            "started": time.time()}
     thread = threading.Thread(target=_worker, args=(job,), daemon=True)
     thread.start()
@@ -637,24 +703,34 @@ def _finish(job):
                                  % job["source"]}
         return
     faces = job["faces"]
-    quads = sum(1 for f in faces if len(f) == 4)
     try:
-        new_ob = _build_object(source, job["verts"], faces, job["symmetry"],
-                               job["symmetry_offset"], bpy.context.scene,
-                               job["replace"])
+        new_ob, preserved, split = _build_object(
+            source, job["verts"], faces, job["symmetry"],
+            job["symmetry_offset"], bpy.context.scene, job["replace"], job)
     except Exception as exc:                    # noqa: BLE001
         _last_result = {"ok": False, "error": "could not build the result: %s"
                         % exc, "seconds": job.get("seconds")}
         return
+    # ⚠⚠ COUNTED OFF THE MESH THAT EXISTS, not off the engine's face list.
+    # Splitting concave faces turns a quad into two triangles, so the two
+    # disagree the moment that clean-up does anything - and this panel's whole
+    # rule is that it reports what was MEASURED.
+    built = new_ob.data.polygons
+    sides = [len(p.vertices) for p in built]
+    quads = sum(1 for n in sides if n == 4)
+    total = len(sides) or 1
     _last_result = {
         "ok": True, "object": new_ob.name, "source": job["source"],
         "verts_in": job["verts_in"], "faces_in": job["faces_in"],
-        "verts": len(job["verts"]), "faces": len(faces), "quads": quads,
-        "tris": sum(1 for f in faces if len(f) == 3),
-        "ngons": sum(1 for f in faces if len(f) > 4),
-        "quad_pct": round(100.0 * quads / len(faces), 1),
+        "verts": len(new_ob.data.vertices), "faces": len(sides),
+        "quads": quads,
+        "tris": sum(1 for n in sides if n == 3),
+        "ngons": sum(1 for n in sides if n > 4),
+        "quad_pct": round(100.0 * quads / total, 1),
         "seconds": job.get("seconds"), "smoothed": job.get("smoothed"),
-        "exit": job.get("exit"), "work": job["work"]}
+        "exit": job.get("exit"), "work": job["work"],
+        "concave_split": split,
+        "preserve": bool(job.get("preserve")), "preserved": preserved}
 
 
 def quad_result():
@@ -664,14 +740,117 @@ def quad_result():
                                                     "error": "no run yet"}
 
 
+def _split_concave(mesh):
+    """Split any concave face on the result, in place. Returns how many.
+
+    ⚠⚠ **THIS IS WHAT MAKES THE RESULT USABLE AS A SURFACE DEFORM TARGET.**
+    Blender's Surface Deform refuses a target that contains a concave face —
+    Marty hit it as *"target contains concave polygons"* — and a quad remesh
+    produces a handful around its singularities as a matter of course. A cage
+    that cannot be bound to is not a cage.
+
+    ⚠ **IT COSTS THE ALL-QUAD PROMISE, so the count is REPORTED, not hidden.**
+    Splitting a concave quad leaves two triangles. On a real run it was 9 faces
+    in 820; the report says how many so the number in the panel and the number
+    in the mesh never disagree.
+
+    ⚠ The test is the SIGN of the cross product against the face normal at each
+    corner, which is what `connect_verts_concave` itself uses — not an angle
+    threshold, because a face is either concave or it is not.
+    """
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(mesh)
+        concave = []
+        for face in bm.faces:
+            if len(face.verts) < 4:
+                continue
+            normal = face.normal
+            corners = [v.co for v in face.verts]
+            count = len(corners)
+            for index in range(count):
+                before = corners[index - 1]
+                here = corners[index]
+                after = corners[(index + 1) % count]
+                if ((here - before).cross(after - here)).dot(normal) < -1e-9:
+                    concave.append(face)
+                    break
+        if not concave:
+            return 0
+        bmesh.ops.connect_verts_concave(bm, faces=concave)
+        bm.to_mesh(mesh)
+        mesh.update()
+        return len(concave)
+    except Exception:                           # noqa: BLE001
+        # A failed clean-up must not cost the retopology itself.
+        return 0
+    finally:
+        bm.free()
+
+
+def _morphed_base(ob):
+    """The source's BASE topology in the shape its morphs currently give it.
+
+    ⚠⚠ **THE WEIGHTS ARE INDEXED BY BASE VERTICES, BUT THE RETOPO FOLLOWS THE
+    MORPHED SHAPE.** Since the shape keys bake in rather than transfer, those
+    two stopped being the same mesh the moment a morph is dialled in — and
+    binding one to the other samples every weight at the wrong place. That is
+    silently wrong, not visibly broken, which is the worst kind.
+
+    ⚠ Every modifier is switched off, not just the deform ones: shape keys are
+    evaluated BEFORE modifiers, so with the stack off `to_mesh()` hands back
+    base topology carrying the morphed shape. Blender's own evaluation, so
+    relative keys, slider ranges and vertex-group masks are all honoured
+    instead of being re-implemented here and drifting.
+
+    Returns `None` when the object has no shape keys — nothing to correct for.
+    """
+    if ob.data.shape_keys is None:
+        return None
+    state = [(modifier, modifier.show_viewport) for modifier in ob.modifiers]
+    try:
+        for modifier, _ in state:
+            modifier.show_viewport = False
+        bpy.context.view_layer.update()
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        ob_eval = ob.evaluated_get(depsgraph)
+        mesh = ob_eval.to_mesh()
+        if len(mesh.vertices) != len(ob.data.vertices):
+            # A modifier we could not switch off changed the topology; the
+            # indexing no longer lines up, so the base mesh is the safer read.
+            ob_eval.to_mesh_clear()
+            return None
+        coords = [tuple(vertex.co) for vertex in mesh.vertices]
+        ob_eval.to_mesh_clear()
+        return coords
+    except Exception:                           # noqa: BLE001
+        return None
+    finally:
+        for modifier, shown in state:
+            try:
+                modifier.show_viewport = shown
+            except ReferenceError:
+                pass
+        bpy.context.view_layer.update()
+
+
 def _build_object(source, verts, faces, symmetry, symmetry_offset, scene,
-                  replace):
+                  replace, job=None):
     """Turn the engine's vertices and faces into a real object beside the
-    original: same collections, same transform, same parent."""
+    original: same collections, same transform, same parent.
+
+    Returns `(new_ob, preserve_report)`. ⚠ **The preserve pass has to run
+    before the `replace` branch**, because that branch deletes the very object
+    everything is being sampled from.
+    """
     mesh = bpy.data.meshes.new("%s_quads" % source.data.name)
     mesh.from_pydata(verts, [], faces)
     mesh.validate()
     mesh.update()
+
+    split = 0
+    if job is None or job.get("fix_concave", True):
+        split = _split_concave(mesh)
 
     new_ob = bpy.data.objects.new("%s_quads" % source.name, mesh)
     for collection in source.users_collection:
@@ -691,9 +870,22 @@ def _build_object(source, verts, faces, symmetry, symmetry_offset, scene,
         mirror.use_axis[1] = "y" in symmetry.lower()
         mirror.use_axis[2] = "z" in symmetry.lower()
 
+    preserved = None
+    if job is not None and job.get("preserve"):
+        try:
+            preserved = quadpreserve.preserve(
+                source, new_ob, job.get("matrix") or source.matrix_world,
+                disabled=job.get("disabled") or (),
+                skipped=job.get("skipped") or (),
+                source_coords=_morphed_base(source))
+        except Exception as exc:            # noqa: BLE001
+            # ⚠ A failed transfer must not cost the retopology. The mesh is
+            # the thing that took minutes; the rig data can be redone.
+            preserved = {"ok": False, "error": str(exc)}
+
     if replace:
         bpy.data.objects.remove(source, do_unlink=True)
     else:
         source.hide_set(True)
         source.hide_render = True
-    return new_ob
+    return new_ob, preserved, split

@@ -102,7 +102,7 @@ UNREACHABLE_BACKOFF = 30.0
 # update_bridge_status warns when they differ, which catches the "rebuilt the
 # exe but forgot to reinstall the extension" case (and the reverse). Bump it
 # together with blender_manifest.toml whenever new commands land.
-EXPECTED_ADDON_VERSION = "0.52.1"
+EXPECTED_ADDON_VERSION = "0.58.0"
 
 # ---------------------------------------------------------------------------
 # Update safety: a version gap must DEGRADE, never break.
@@ -1334,6 +1334,35 @@ class Bridge:
         while Blender carried on working invisibly behind it. Nothing here may
         go back to waiting for the run."""
         return self.request("quad_retopologize", params, timeout=60.0)
+
+    def bake_status(self, poll=False):
+        """What there is to bake on the active mesh. A pure read."""
+        return self.request("bake_status", timeout=10.0, poll=poll)
+
+    def bake_to_shape_keys(self, params):
+        """Bake the evaluated deformation into one shape key per frame.
+
+        ⚠ This one DOES block, unlike a retopology: it is frames x one mesh
+        evaluation, which is seconds even on a long range, and there is no
+        engine to hand off to. The timeout is generous because the range is
+        the user's to choose.
+        """
+        return self.request("bake_to_shape_keys", params, timeout=600.0)
+
+    def clear_shape_keys(self, object_name):
+        """Remove every shape key from a named mesh.
+
+        ⚠⚠ **DESTRUCTIVE, and the name is not optional.** The add-on refuses an
+        empty one instead of falling back to the active object: the user
+        confirms a dialog that names a mesh, and what is active in Blender by
+        the time this arrives is a different question.
+
+        ⚠ It is fast — no frames are evaluated, nothing is written per vertex —
+        so the timeout is short. A slow answer here means Blender is busy, not
+        that the work is long.
+        """
+        return self.request("bake_clear_keys", {"object": object_name},
+                            timeout=30.0)
 
     def quad_cancel(self):
         """Stop the run in flight. Answered off the main thread, like
