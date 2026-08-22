@@ -102,7 +102,7 @@ UNREACHABLE_BACKOFF = 30.0
 # update_bridge_status warns when they differ, which catches the "rebuilt the
 # exe but forgot to reinstall the extension" case (and the reverse). Bump it
 # together with blender_manifest.toml whenever new commands land.
-EXPECTED_ADDON_VERSION = "0.58.0"
+EXPECTED_ADDON_VERSION = "0.59.0"
 
 # ---------------------------------------------------------------------------
 # Update safety: a version gap must DEGRADE, never break.
@@ -254,6 +254,15 @@ FEATURE_REQUIREMENTS = {
         "Replace shader needs Blender add-on 0.27.0 or newer — update the "
         "extension from ⚙ Library Settings, or untick it to just save the "
         "maps."),
+    # Assets in the Studio Library. ⚠ Degrades to READ-ONLY rather than to
+    # nothing: the grid, the catalog tree and every stored asset's thumbnail
+    # come off DISK, so an old add-on loses saving and applying and keeps the
+    # browsing. That is the whole reason the sidecar exists.
+    "assetlib": (
+        "assetlib_save", "0.59.0",
+        "Saving and applying assets needs Blender add-on 0.59.0 or newer — "
+        "update the extension from ⚙ Library Settings. Assets already in the "
+        "library still show and can still be tagged and organised."),
     # Save & Queue in the Render Queue. Degrades to the ONE button: Add Blends
     # and the rest of the queue are disk-only and never needed Blender at all.
     "save_open_blend": (
@@ -1240,6 +1249,69 @@ class Bridge:
         app to report a failure that never happened.
         """
         return self.request("save_blend", timeout=300.0)
+
+    # ---- Blender assets in a Studio Library (add-on 0.59.0, 2026-08-22)
+    # ⚠ `assetlib_*`, not `asset_*`: the add-on's `assets.py` is the NSFW Tools
+    # geonode builder and answers `build_asset` / `asset_status`. Two meanings
+    # of one word, and the prefix is what keeps them apart on the wire.
+    def assetlib_libraries(self):
+        """Every asset library Blender knows -> {libraries: [{name, path,
+        exists}]}. ⚠ `exists` is reported because a registered library whose
+        folder is gone still reports as registered — Marty's own "User
+        Library" is exactly that."""
+        return self.request("assetlib_libraries", timeout=15.0)
+
+    def assetlib_register(self, library_root, name="MadihsonNSFW Toolset"):
+        """Make Blender's Asset Browser aware of this folder. Idempotent by
+        PATH — registering twice would otherwise give two identical entries."""
+        return self.request("assetlib_register",
+                            {"library_root": library_root, "name": name},
+                            timeout=20.0)
+
+    def assetlib_catalogs(self, library_root):
+        """Blender's catalog file, parsed.
+
+        ⚠ The app can read this file ITSELF with Blender closed — it is plain
+        text at the library root. This route exists for the case where Blender
+        is open and may have rewritten it since the last scan."""
+        return self.request("assetlib_catalogs",
+                            {"library_root": library_root}, timeout=15.0)
+
+    def assetlib_candidates(self):
+        """What the current selection offers per kind -> {object: [...],
+        collection: [...], material: [...], nodegroup: [...], active}."""
+        return self.request("assetlib_candidates", timeout=15.0)
+
+    def assetlib_marked(self):
+        """Datablocks in the open file that are already assets."""
+        return self.request("assetlib_marked", timeout=20.0)
+
+    def assetlib_save(self, library_root, folder, name, kind, datablock,
+                      catalog="", author="", description="", tags=(),
+                      overwrite=False):
+        """Mark a datablock and store it as a library item.
+
+        ⚠ There is no path parameter and there must never be one. The add-on
+        composes `<root>/<folder>/<name>.<kind>/asset.blend` itself; see
+        `docs\\security.md` on why `save_blend` is parameterless.
+
+        ⚠ A generous timeout: writing a .blend is disk-bound and the preview
+        wait can add over a second on top."""
+        return self.request("assetlib_save", {
+            "library_root": library_root, "folder": folder, "name": name,
+            "kind": kind, "datablock": datablock, "catalog": catalog,
+            "author": author, "description": description,
+            "tags": list(tags), "overwrite": overwrite}, timeout=180.0)
+
+    def assetlib_apply(self, item_path, link=False, reuse=True):
+        """Append (or link) a stored asset into the open file.
+
+        ⚠ `reuse` is dropped when linking — Blender refuses both together
+        ("`link` must be False if `reuse_local_id` is True"), which is not an
+        oversight: reusing a local copy is the opposite of linking."""
+        return self.request("assetlib_apply",
+                            {"item_path": item_path, "link": bool(link),
+                             "reuse": bool(reuse)}, timeout=180.0)
 
     def picker_start(self):
         return self.request("picker_start", timeout=15.0)

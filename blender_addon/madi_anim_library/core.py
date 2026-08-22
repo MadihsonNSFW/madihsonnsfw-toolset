@@ -38,8 +38,18 @@ RENDERPRESET_EXT = ".renderpreset"
 #      were both invisible for exactly this reason until 2026-08-05.
 # `tests\app_picker_test.py` asserts 1 == 2; `tests\app_vgroups_test.py`
 # asserts 3 covers 2.
+# Blender assets (2026-08-22). Four id types, four extensions — `assetlib.py`
+# holds the mapping and the reasoning. ⚠ These four are the FIRST item types
+# whose payload is a `.blend` rather than JSON, which is why `assetlib` composes
+# every path itself; see its header and `docs\security.md`.
+OBJECT_EXT = ".object"
+COLLECTION_EXT = ".collection"
+MATERIAL_EXT = ".material"
+NODEGROUP_EXT = ".nodegroup"
+
 ITEM_EXTS = (POSE_EXT, SET_EXT, ANIM_EXT, MIRROR_EXT, SHAPES_EXT, REMAP_EXT,
-             ABC_EXT, PICKER_EXT, VGROUPS_EXT, RENDERPRESET_EXT)
+             ABC_EXT, PICKER_EXT, VGROUPS_EXT, RENDERPRESET_EXT,
+             OBJECT_EXT, COLLECTION_EXT, MATERIAL_EXT, NODEGROUP_EXT)
 
 FORMAT_VERSION = 1
 
@@ -48,7 +58,7 @@ FORMAT_VERSION = 1
 # "rebuilt the exe but forgot to reinstall the add-on" confusion.
 # MUST match blender_manifest.toml's `version`; tests\bridge_version_test.py
 # asserts that, and app\bridge.py carries the version the app expects.
-ADDON_VERSION = "0.58.0"
+ADDON_VERSION = "0.59.0"
 
 _INVALID_FS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
@@ -62,7 +72,21 @@ def safe_name(name):
 
 VERSIONS_DIR = "versions"
 _PAYLOAD_FILES = ("pose.json", "set.json", "anim.json", "mirror.json",
-                  "shapes.json", "remap.json", "abc.json", "thumbnail.jpg")
+                  "shapes.json", "remap.json", "abc.json", "thumbnail.jpg",
+                  # ⚠⚠ An asset's payload is the .blend AND its sidecar. Without
+                  # `asset.blend` here, versioning an overwritten asset moved
+                  # only the thumbnail: the version folder looked right, and
+                  # held a picture of a thing it could not restore. The suite
+                  # missed it too, by counting version FOLDERS rather than
+                  # looking inside one.
+                  "asset.blend", "object.json", "collection.json",
+                  "material.json", "nodegroup.json")
+# ⚠ Pre-existing and NOT fixed here: `picker.json`, `vgroups.json`,
+# `renderpreset.json` and `reference.jpg` are in the app's list
+# (`app\library.py`) and missing from this one, so an overwrite-save of those
+# three types versions less than the app expects. Left alone deliberately —
+# changing how existing types version is not part of adding assets — but it is
+# real, and it is the same shape as the bug above.
 _VERSION_RE = re.compile(r"v\d+$")
 
 

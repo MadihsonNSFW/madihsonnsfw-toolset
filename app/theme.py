@@ -132,6 +132,14 @@ TYPE_COLORS = {
     "playblast": "#a8b0bc",
     "picker": "#8f7ae0",
     "renderpreset": "#e0704f",
+    # Blender assets (2026-08-22). Chosen to sit beside the ten above without
+    # colliding: the palette already owns blue, purple, green, amber, pink,
+    # teal, olive, violet and orange-red, so these are the cooler/softer
+    # corners of each rather than a tenth hue nobody can name.
+    "object": "#7fb0e0",
+    "collection": "#9ad06a",
+    "material": "#e08fb0",
+    "nodegroup": "#c0a0e8",
 }
 
 # color labels for tiles (Studio Library style) — name -> hex, order = menu order

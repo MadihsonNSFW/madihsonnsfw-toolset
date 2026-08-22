@@ -14,18 +14,70 @@ import time
 # is the one whose absence is SILENT: refilter() drops any type with no
 # checkbox, so the item saves, scans and never draws. See core.py's comment.
 ITEM_EXTS = (".pose", ".set", ".anim", ".mirror", ".shapes", ".remap", ".abc",
-             ".picker", ".vgroups", ".renderpreset")
+             ".picker", ".vgroups", ".renderpreset",
+             # Blender assets (2026-08-22). ⚠ The first four types whose
+             # payload is a `.blend`, not JSON — the JSON beside it is a
+             # SIDECAR, and it exists so this module can describe an asset
+             # with Blender closed. See blender_addon\...\assetlib.py.
+             ".object", ".collection", ".material", ".nodegroup")
 DATA_FILES = {"pose": "pose.json", "set": "set.json", "anim": "anim.json",
               "mirror": "mirror.json", "shapes": "shapes.json",
               "remap": "remap.json", "abc": "abc.json",
               "picker": "picker.json", "vgroups": "vgroups.json",
-              "renderpreset": "renderpreset.json"}
+              "renderpreset": "renderpreset.json",
+              "object": "object.json", "collection": "collection.json",
+              "material": "material.json", "nodegroup": "nodegroup.json"}
+
+# The kinds whose payload is a Blender file. Kept as a set rather than spelled
+# out at each call site: three places already ask "is this an asset?" and a
+# fourth that forgets would be a silent divergence.
+ASSET_KINDS = ("object", "collection", "material", "nodegroup")
+ASSET_BLEND = "asset.blend"
+CATALOG_FILE = "blender_assets.cats.txt"
+
+
+def read_catalogs(root):
+    """Blender's asset catalogs, read straight off disk.
+
+    ⚠⚠ THE POINT IS THAT THIS NEEDS NO BLENDER. Blender stores catalogs as
+    plain text at the library root — `UUID:catalog/path:simple name` — which is
+    what lets the Assets half of the tab work with Blender closed, exactly like
+    the rest of the library does. The add-on has the same parser for the case
+    where Blender is open and has rewritten the file since the last scan; if
+    one of the two ever changes, both change.
+
+    Returns [{uuid, path, name}], sorted by path.
+    """
+    rows = []
+    path = os.path.join(root, CATALOG_FILE)
+    if not os.path.isfile(path):
+        return rows
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            lines = fh.readlines()
+    except OSError:
+        return rows
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith("VERSION"):
+            continue
+        parts = line.split(":", 2)
+        if len(parts) == 3:
+            rows.append({"uuid": parts[0], "path": parts[1], "name": parts[2]})
+    rows.sort(key=lambda r: r["path"].lower())
+    return rows
 
 # versioning layout — MUST match core.py's version_item() on the add-on side
 VERSIONS_DIR = "versions"
 _PAYLOAD_FILES = ("pose.json", "set.json", "anim.json", "mirror.json",
                   "shapes.json", "remap.json", "abc.json", "picker.json",
                   "vgroups.json", "renderpreset.json", "thumbnail.jpg",
+                  # ⚠⚠ An asset's payload is its .blend AND its sidecar. Miss
+                  # `asset.blend` here and versioning an asset keeps the
+                  # description and throws away the thing itself — a version
+                  # you cannot restore, which is worse than no version.
+                  "asset.blend", "object.json", "collection.json",
+                  "material.json", "nodegroup.json",
                   # ⚠ the picker's CLEAN reference picture. Every thumbnail
                   # compose starts from this file rather than from
                   # thumbnail.jpg, so a version that kept only the composite
@@ -70,6 +122,7 @@ ANIM_FLAGS = (
 
 _META_HEAD_BYTES = 16384    # enough for any metadata block ever written
 _fastmeta_cache = {}        # (path, mtime) -> metadata dict
+_catalog_cache = {}         # (path, mtime) -> Blender catalog path, "" if none
 
 
 def _peek_metadata(path):
@@ -176,6 +229,39 @@ class Item:
         if self.type not in _BULK_UNITS:
             return 0
         return self._parsed()[1]
+
+    def catalog(self):
+        """The Blender catalog this asset is filed under, or "".
+
+        ⚠ THE TYPE CHECK COMES FIRST, for the same reason `bulk_count` does:
+        this is called once per item on every refilter, and without the guard
+        a catalog filter would parse every `.anim` json in the library to ask
+        a question only four types can answer.
+
+        ⚠ Read from the SIDECAR rather than from the folder path. An asset's
+        folder is where Marty put it; its catalog is what Blender files it
+        under, and the two are deliberately independent — a `Props/Barrel`
+        catalog can live in a `Shot 12` folder.
+
+        ⚠ Cached per (path, mtime), like every other per-item read here. The
+        catalog sits at the TOP level of the sidecar, not inside `metadata`,
+        so `meta()`'s cache cannot serve it — and reaching for `read_data()`
+        on every refilter would re-parse the whole library on each keystroke
+        in the search box.
+        """
+        if self.type not in ASSET_KINDS:
+            return ""
+        key = (self.path, self.mtime)
+        cached = _catalog_cache.get(key)
+        if cached is None:
+            try:
+                cached = self.read_data().get("catalog", "") or ""
+            except (OSError, ValueError):
+                cached = ""
+            _catalog_cache[key] = cached
+            while len(_catalog_cache) > 2048:
+                _catalog_cache.pop(next(iter(_catalog_cache)))
+        return cached
 
     def meta_fast(self):
         """Just the metadata, cheap enough for a paint path.

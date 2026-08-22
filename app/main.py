@@ -1904,6 +1904,12 @@ class LibraryView(QWidget):
         self.active_remap = None   # path of the .remap item chosen via "Use Remap"
         self._capture = None       # in-flight CaptureWorker (one at a time)
         self._abc_worker = None    # in-flight alembic export/import worker
+        self._asset_worker = None  # in-flight asset append/link worker
+        # ⚠ Set BEFORE anything else here: `rescan()` runs during this
+        # constructor and asks which mode it is in. Not persisted — a mode
+        # whose "off" state hides two thirds of the library is one you want
+        # to start from a known place every launch.
+        self.mode = "items"
         # Auto-refresh (opt-in, ⚙ Library Settings). Created before the first
         # rescan below, because rescan() re-arms the watch list.
         self._watcher = None
@@ -2009,6 +2015,62 @@ class LibraryView(QWidget):
         # The accent button paints white text, so its glyph has to be white too
         # — the default TEXT_DIM would read as a disabled icon on a live button.
         icons.button_icon(btn_import, "import", color="#ffffff")
+        # ---- Items | Assets. Marty picked option C (2026-08-22): the same
+        # library holds both, and this decides which half you are looking at.
+        # ⚠ Two buttons rather than a QComboBox: the mode changes what the
+        # whole tab means, and a mode you cannot see at a glance is one you
+        # forget you are in.
+        self.mode_buttons = {}
+        mode_row = QWidget()
+        mode_lay = QHBoxLayout(mode_row)
+        mode_lay.setContentsMargins(0, 0, 0, 0)
+        mode_lay.setSpacing(0)
+        for key, label in (("items", "Items"), ("assets", "Assets")):
+            b = QPushButton(label)
+            b.setCheckable(True)
+            b.setChecked(key == "items")
+            b.setObjectName("flat")
+            b.setToolTip("Items: poses, animations, sets and the rest.\n"
+                         "Assets: Blender objects, collections, materials and "
+                         "node groups — the same store the Asset Browser reads."
+                         if key == "items" else
+                         "Blender assets — objects, collections, materials and "
+                         "node groups. This library is registered with "
+                         "Blender, so what is here is what its Asset Browser "
+                         "sees.")
+            # ⚠ AN EXPLICIT minimumWidth IS WHAT LETS THE WINDOW STAY NARROW.
+            # A layout uses `minimumSizeHint()` unless a minimum is set, and a
+            # QPushButton's hint is its whole text plus the theme's padding —
+            # 76 px and 88 px here, which is 170 px straight onto the window's
+            # floor and a failed `app_ui_test` ceiling. With a minimum set, Qt
+            # elides the label instead. Measured, not guessed: the growth was
+            # entirely in `LibraryView`'s own layout (502 -> 672), while the
+            # sidebar and info panel had not moved at all.
+            b.setMinimumWidth(34)
+            b.clicked.connect(lambda _c=False, k=key: self.set_library_mode(k))
+            self.mode_buttons[key] = b
+            mode_lay.addWidget(b)
+
+        # What a double-click does to an asset. Blender's own Asset Browser
+        # offers the same three, and the difference between them is total.
+        self.asset_mode_combo = QComboBox()
+        self.asset_mode_combo.addItem("Append", "append_reuse")
+        self.asset_mode_combo.addItem("Append (new copy)", "append")
+        self.asset_mode_combo.addItem("Link", "link")
+        self.asset_mode_combo.setToolTip(
+            "Append — a copy you own, reusing materials already in the file.\n"
+            "Append (new copy) — a copy of everything, even if it duplicates.\n"
+            "Link — stays owned by the library file; edits happen there.")
+        # ⚠ A COMBO'S sizeHint IS ITS LONGEST ITEM, so "Append (new copy)" was
+        # setting a floor under the whole window — the same trap the zoom
+        # slider and `ElidedLabel` already solved in this toolbar. Wants its
+        # full width, settles for eight characters when the window is narrow.
+        self.asset_mode_combo.setSizeAdjustPolicy(
+            QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.asset_mode_combo.setMinimumContentsLength(8)
+        self.asset_mode_combo.setMaximumWidth(150)
+
+        bar.addWidget(mode_row)
         bar.addWidget(btn_refresh)
         bar.addWidget(btn_settings)
         bar.addWidget(btn_newfolder)
@@ -2017,10 +2079,17 @@ class LibraryView(QWidget):
         bar.addWidget(self.btn_watch)
         self.sync_watch_button()
         bar.addWidget(self.search, 1)
+        bar.addWidget(self.asset_mode_combo)
         bar.addWidget(zoom_label)
         bar.addWidget(self.zoom)
         bar.addWidget(self.path_label)
         lay.addLayout(bar)
+        # ⚠ HIDDEN **AFTER** `addWidget`, not before. Adding a widget to a
+        # layout shows it, so an `.hide()` at construction time is undone the
+        # moment it is added — the combo was visible in Items mode and
+        # contributing its width to the window's minimum, which is how a
+        # dropdown nobody could see put 98 px under the whole app.
+        self.asset_mode_combo.hide()
 
         split = QSplitter(Qt.Horizontal)
         self.sidebar = Sidebar()
@@ -2036,6 +2105,7 @@ class LibraryView(QWidget):
         self.info = InfoPanel()
         self.info.applyRequested.connect(self.on_apply)
         self.info.saveRequested.connect(self.on_save)
+        self.info.markRequested.connect(self.on_mark_asset)
         self.info.blendStarted.connect(self.on_blend_start)
         self.info.blendChanged.connect(self.on_blend_change)
         self.info.blendEnded.connect(self.on_blend_end)
@@ -2116,6 +2186,26 @@ class LibraryView(QWidget):
 
     # ------------------------------------------------------------- data
 
+    def set_library_mode(self, mode):
+        """Items ⇄ Assets. The same library, the other half of it.
+
+        ⚠ The two buttons are set from `self.mode` rather than left to
+        whichever one was clicked: `set_library_mode` is also called on
+        startup and by tests, and a toggle that only agrees with reality when
+        a human pressed it is a toggle that lies.
+        """
+        self.mode = "assets" if mode == "assets" else "items"
+        for key, button in self.mode_buttons.items():
+            button.setChecked(key == self.mode)
+            button.setObjectName("accent" if key == self.mode else "flat")
+            # Qt does not restyle on an objectName change on its own.
+            button.style().unpolish(button)
+            button.style().polish(button)
+        self.asset_mode_combo.setVisible(self.mode == "assets")
+        self.sidebar.set_mode(self.mode)
+        self.info.set_mode(self.mode)
+        self.rescan()
+
     def rescan(self):
         self.sync_watch_button()
         self.folders, self.items = library.scan(self.lib_cfg["path"])
@@ -2133,7 +2223,30 @@ class LibraryView(QWidget):
                     rel = rel.rsplit("/", 1)[0]
                 else:
                     break
-        self.sidebar.set_folders(self.folders, counts)
+        if self.mode == "assets":
+            # ⚠ Counted by CATALOG, not by folder, and recursively — a parent
+            # catalog with nothing filed directly under it still has to show
+            # the total of everything beneath, or `Geonodes` reads as empty
+            # while `Geonodes/Slime` holds nine.
+            cat_counts = {None: 0}
+            for it in self.items:
+                if it.type not in library.ASSET_KINDS:
+                    continue
+                cat_counts[None] += 1
+                rel = it.catalog()
+                while rel:
+                    cat_counts[rel] = cat_counts.get(rel, 0) + 1
+                    if "/" not in rel:
+                        break
+                    rel = rel.rsplit("/", 1)[0]
+            cats = library.read_catalogs(self.lib_cfg["path"])
+            self.sidebar.set_catalogs(cats, cat_counts)
+            # ⚠ Suggestions come from the CATALOG FILE, not from the items:
+            # a catalog Marty made in Blender and has not filed anything under
+            # yet is exactly the one he is about to use.
+            self.info.set_catalog_choices([c["path"] for c in cats])
+        else:
+            self.sidebar.set_folders(self.folders, counts)
         tag_counts = {}
         for it in self.items:
             for t in it.tags:
@@ -2271,9 +2384,20 @@ class LibraryView(QWidget):
         refilter walk stays readable)."""
         if it.type not in types:
             return False
-        if folder and not (it.folder == folder or
-                           it.folder.startswith(folder + "/")):
-            return False
+        if folder:
+            # ⚠ THE TREE MEANS TWO DIFFERENT THINGS. In Items mode its
+            # UserRole is a disk folder; in Assets mode it is a Blender
+            # CATALOG, and an asset's catalog is independent of where its
+            # folder sits — `Props/Barrel` can live in a `Shot 12` folder.
+            # Matching a catalog against `it.folder` would show nothing and
+            # look like an empty library.
+            if self.mode == "assets":
+                cat = it.catalog()
+                if not (cat == folder or cat.startswith(folder + "/")):
+                    return False
+            elif not (it.folder == folder or
+                      it.folder.startswith(folder + "/")):
+                return False
         if text and text not in it.name.lower():
             return False
         if f["tags"] and not (f["tags"] & set(it.tags)):
@@ -2348,6 +2472,12 @@ class LibraryView(QWidget):
             return
         if item.type == "abc":  # slow for big caches -> background worker
             self.import_abc_flow(item)
+            return
+        # A Blender asset brings NEW datablocks in; every type below writes
+        # into datablocks that are already there. Nothing further down this
+        # method applies.
+        if item.type in library.ASSET_KINDS:
+            self.apply_asset_flow(item)
             return
         remap_table = None
         if opts.get("remap") and item.type in ("pose", "anim"):
@@ -2897,6 +3027,126 @@ class LibraryView(QWidget):
             self._anim_worker = None
             self.window.end_capture()
             self.window.bridge_error(bridgemod.BridgeError(err))
+
+        worker.done.connect(_done)
+        worker.failed.connect(_failed)
+        worker.start()
+
+    def on_mark_asset(self, kind, name, catalog):
+        """Mark what is selected in Blender as an asset and store it here.
+
+        ⚠ It asks Blender WHAT is selected before doing anything, rather than
+        acting on a name the panel guessed. The selection can change between
+        opening the tab and pressing the button, and a save that silently
+        stored the wrong object would be discovered days later.
+        """
+        if not self._bridge_free():
+            return
+        try:
+            found = self.bridge.assetlib_candidates()
+        except Exception as exc:                      # noqa: BLE001
+            QMessageBox.warning(self, "Mark as asset", str(exc))
+            return
+        names = found.get(kind) or []
+        if not names:
+            QMessageBox.information(
+                self, "Mark as asset",
+                "Nothing selected in Blender offers a %s.\n\n"
+                "Select the objects you want, then press this again. For a "
+                "collection, make it the active one in the Outliner."
+                % kind.replace("nodegroup", "node group"))
+            return
+        datablock = names[0]
+        if len(names) > 1:
+            # ⚠ One item per press, and it says which one. Marking four
+            # objects into one item would make an asset nobody asked for; a
+            # silent "the first one" would be worse.
+            ask = QMessageBox.question(
+                self, "Mark as asset",
+                "The selection offers %d %ss.\n\nStore '%s'?\n\n"
+                "(The others stay as they are — mark them one at a time.)"
+                % (len(names), kind, datablock),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if ask != QMessageBox.Yes:
+                return
+
+        item_name = name or datablock
+        folder = self.sidebar.current_folder() or ""
+        # A catalog selected in the tree is the obvious default for a new one.
+        if not catalog and self.mode == "assets":
+            catalog = self.sidebar.current_folder() or ""
+
+        self.window.begin_capture(item_name, verb="storing")
+        worker = BridgeWorker(
+            lambda: self.bridge.assetlib_save(
+                self.lib_cfg["path"], folder, item_name, kind, datablock,
+                catalog=catalog), parent=self)
+        self._asset_worker = worker
+
+        def _done(r):
+            self._asset_worker = None
+            self.window.end_capture()
+            note = "" if r.get("thumbnail") else \
+                "  — no preview yet: Blender renders those for objects and " \
+                "materials, not for node groups"
+            already = "  (it was already marked in your file)" \
+                if r.get("was_already_marked") else ""
+            self.window.statusBar().showMessage(
+                "Stored '%s' as a %s%s%s" % (r.get("datablock", item_name),
+                                             kind, already, note), 9000)
+            self.info.asset_name.clear()
+            self.rescan()
+
+        def _failed(err):
+            self._asset_worker = None
+            self.window.end_capture()
+            QMessageBox.warning(self, "Mark as asset", err)
+
+        worker.done.connect(_done)
+        worker.failed.connect(_failed)
+        worker.start()
+
+    def apply_asset_flow(self, item):
+        """Append (or link) a stored Blender asset into the open file.
+
+        ⚠ A worker, not a blocking call: `libraries.load` reads a whole .blend
+        and a character asset is not small. The add-on holds Blender's main
+        thread while it runs, which is expected — what must not also freeze is
+        this window.
+        """
+        link = self.asset_mode_combo.currentData() == "link" \
+            if getattr(self, "asset_mode_combo", None) is not None else False
+        reuse = self.asset_mode_combo.currentData() == "append_reuse" \
+            if getattr(self, "asset_mode_combo", None) is not None else True
+        verb = "linking" if link else "appending"
+        self.window.begin_capture(item.name, verb=verb)
+        worker = BridgeWorker(
+            lambda: self.bridge.assetlib_apply(item.path, link=link,
+                                               reuse=reuse), parent=self)
+        self._asset_worker = worker
+
+        def _done(r):
+            self._asset_worker = None
+            self.window.end_capture()
+            # ⚠ Report the name that LANDED, not the one that was asked for.
+            # An append with reuse off gives `Wet skin.001`, and saying "Wet
+            # skin" would send him looking for something that is not there.
+            note = "Linked" if r.get("linked") else "Appended"
+            extra = ""
+            if r.get("renamed"):
+                extra = "  — arrived as '%s', a copy" % r["datablock"]
+            elif not r.get("placed") and r.get("kind") in ("material",
+                                                           "nodegroup"):
+                extra = ("  — it is in the file, not in the scene: pick it "
+                         "from a material or modifier dropdown")
+            self.window.statusBar().showMessage(
+                "%s %s '%s'%s" % (note, r.get("kind", "asset"),
+                                  r.get("datablock", item.name), extra), 9000)
+
+        def _failed(err):
+            self._asset_worker = None
+            self.window.end_capture()
+            QMessageBox.warning(self, "Apply asset", err)
 
         worker.done.connect(_done)
         worker.failed.connect(_failed)

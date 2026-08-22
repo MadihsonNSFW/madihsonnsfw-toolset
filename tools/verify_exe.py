@@ -353,7 +353,10 @@ MARKERS = [
     # `bakedeform.py` both changed.
     # 0.58.0 - the Quadify read crash fix: `new_from_object` instead of
     # `to_mesh()`. No new file, so still 50 - only the hash moves.
-    ("addon_bundle", "54932b2d97de30ac", True),
+    # 0.59.0 - adds `assetlib.py` (Blender assets in the Studio Library),
+    # so 51 files. The hash moves for that and for `core.py` + `server.py`.
+    ("addon_bundle", "2cb5973fd86cae77", True),
+    ("addon_bundle", "54932b2d97de30ac", False),
     ("addon_bundle", "9015c8cad34d540e", False),
     ("addon_bundle", "e387f17ccb5e70fb", False),
     ("addon_bundle", "69515f50c272c5ed", False),
@@ -537,6 +540,26 @@ MARKERS = [
     # button's own label and the route it calls.
     ("bakedeform", "Delete all shape keys", True),
     ("bakedeform", "bake_clear_keys", True),
+    # --- Blender assets in the Studio Library (2026-08-22) ----------------
+    # ⚠ Assets are a WHOLE HALF OF A TAB behind a switch, so a build that
+    # froze older modules would show a Studio Library that looks perfectly
+    # normal and simply has no Assets button. Every layer is pinned: the
+    # switch, the four registrations, the route and the catalog reader.
+    ("main", "set_library_mode", True),
+    ("main", "apply_asset_flow", True),
+    ("main", "on_mark_asset", True),
+    ("library", "read_catalogs", True),
+    ("library", "ASSET_KINDS", True),
+    ("library", "blender_assets.cats.txt", True),
+    ("panels", "Mark selected", True),
+    ("panels", "set_catalogs", True),
+    ("bridge", "assetlib_save", True),
+    ("bridge", "assetlib_apply", True),
+    # ⚠ The four extensions themselves. A build whose `library.py` predates
+    # them scans the same folders and finds nothing — an empty Assets grid
+    # over a library full of assets, with no error anywhere.
+    ("library", ".nodegroup", True),
+    ("grid", "nodegroup", True),
     # --- Texture Maps (2026-08-17) ----------------------------------------
     # ⚠⚠ **THE LAZY-TAB TRAP, AND THIS TAB IS THE WORST CASE FOR IT.** Its
     # three modules are imported INSIDE `_build_texmaps` (PERF_PLAN option D),
@@ -593,7 +616,12 @@ MARKERS = [
     ("rigprops", "ChannelTable", True),
     ("bridge", "rig_props", True),
     ("bridge", "rig_props_unkey", True),
-    ("bridge", "0.58.0", True),
+    ("bridge", "0.59.0", True),
+    # ⚠ "0.58.0" grepped out of `appridge.py` before flipping this,
+    # as the rule requires - it was only ever the expected version, and
+    # 0.59.0 replaced it. 0.59.0 IS also a since_version (the assetlib
+    # gate), so it has two mentions rather than one.
+    ("bridge", "0.58.0", False),
     # ⚠ "0.57.0" grepped out of `app\bridge.py` before flipping
     # this, as the rule requires - it was only ever the expected version.
     ("bridge", "0.57.0", False),

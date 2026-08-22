@@ -13,6 +13,60 @@ Toolset makes **no network connections at all**.
 
 ## Update notes
 
+### 1.27.0 - Assets: the Studio Library is a Blender asset library now
+
+**Objects, collections, materials and node groups can live in the library
+too** - and not in a copy of your assets, in *the* copy. The Studio Library
+registers itself with Blender as an asset library, so anything you store here
+appears in Blender's own **Asset Browser**, in the same catalog, and anything
+you have already marked as an asset in Blender can be stored here in one press.
+One place, two ways in.
+
+**The tab has an Items | Assets switch** in the top left.
+
+- **Items** is everything the tab has always been: poses, animations, sets,
+  shape keys, the rest.
+- **Assets** is the new half. The **Folders** tree becomes Blender's
+  **Catalogs**, the **Type** filter becomes **Kind**, and the row of Save
+  buttons becomes one **Mark selected**.
+
+**Storing an asset.** Select what you want in Blender, pick the kind, name it,
+choose a catalog - or type a new one, which is added to the library's catalog
+file exactly as Blender would - and press **Mark selected**. It stores the
+datablock as its own `.blend` inside the item, with the preview Blender
+generates for it.
+
+- **An object brings its materials and modifiers with it.**
+- **It also marks the datablock in your open file**, which is the point: that
+  is what makes it show up in Blender's Asset Browser.
+- **It asks first if your selection offers several**, and stores one per press
+  rather than lumping them into one item.
+- **Node groups and collections have no preview**, because Blender only
+  renders those for objects and materials. The tile draws a placeholder and the
+  status bar says so, rather than showing you an empty square.
+
+**Using one.** Double-click a tile. The dropdown beside the search box decides
+what that does, the same three choices Blender's own Asset Browser offers:
+
+- **Append** - a copy you own, reusing materials already in the file rather
+  than making `Wet skin.001`.
+- **Append (new copy)** - a copy of everything, even where it duplicates.
+- **Link** - it stays owned by the library file; edits happen there.
+
+The status bar reports the name that actually **landed**, which is not always
+the name you asked for - an append that made a copy says so.
+
+**Everything the library already does works on assets.** Folders, tags, colour
+labels, search, versions, **Zip for sharing** and **Import** all treat an asset
+as an ordinary item, because none of them ever asked what type an item is.
+Overwriting one versions the old one, `.blend` and all.
+
+**It works with Blender closed**, like the rest of the tab - the grid, the
+catalog tree, the thumbnails and every filter read off disk. What needs Blender
+is storing and applying.
+
+⚠ **Update the add-on for this one** - **⚙ Settings ▸ Update add-on**.
+
 ### 1.26.1 - Fixes a Blender crash in Quadify
 
 **Retopologize could crash Blender on a character with shape keys.** If the

@@ -809,6 +809,45 @@ class BridgeServer:
                         "name the mesh to clear - this route will not act on "
                         "whatever happens to be selected"}
             return bakedeform.clear_shape_keys(name)
+
+        # ---- Blender assets in a Studio Library (2026-08-22, option C)
+        # ⚠⚠ NOT ONE OF THESE TAKES A FILE PATH. `assetlib` composes every
+        # path from a library root, a folder and a name, and the filename
+        # inside an item is a constant in that module. `docs\security.md`
+        # explains why `save_blend` is parameterless; these write a .blend,
+        # which is the same capability, so they are held to the same rule.
+        # ⚠ `assetlib` is NOT `assets` — that one builds geonode rigs for
+        # NSFW Tools and shares nothing with this.
+        if cmd == "assetlib_libraries":
+            from . import assetlib
+            return assetlib.list_libraries()
+        if cmd == "assetlib_register":
+            from . import assetlib
+            return assetlib.register_library(
+                p["library_root"], name=p.get("name", "MadihsonNSFW Toolset"))
+        if cmd == "assetlib_catalogs":
+            from . import assetlib
+            return assetlib.read_catalogs(p["library_root"])
+        if cmd == "assetlib_candidates":
+            from . import assetlib
+            return assetlib.candidates()
+        if cmd == "assetlib_marked":
+            from . import assetlib
+            return assetlib.marked()
+        if cmd == "assetlib_save":
+            from . import assetlib
+            return assetlib.save_asset(
+                p["library_root"], p.get("folder", ""), p["name"],
+                p["kind"], p["datablock"],
+                catalog=p.get("catalog", ""), author=p.get("author", ""),
+                description=p.get("description", ""),
+                tags=p.get("tags") or (),
+                overwrite=p.get("overwrite", False))
+        if cmd == "assetlib_apply":
+            from . import assetlib
+            return assetlib.apply_asset(p["item_path"],
+                                        link=p.get("link", False),
+                                        reuse=p.get("reuse", True))
         if cmd == "quad_retopologize":
             from . import quadify
             return quadify.retopologize(

@@ -250,13 +250,68 @@ def _draw_type_glyph(p, typ, rect, color):
         pen.setStyle(Qt.DotLine)
         p.setPen(pen)
         p.drawLine(QPointF(x + s * 0.5, y + s * 0.12), QPointF(x + s * 0.5, y + s * 0.88))
+    # ---- Blender assets (2026-08-22). ⚠ A type with no branch here draws
+    # NOTHING and the tile gets a blank badge — the glyph is not optional
+    # decoration, it is the only thing on a tile that says what it is.
+    elif typ == "object":
+        # a cube seen slightly from above = a thing with geometry
+        pen = QPen(c, max(1.1, s * 0.10))
+        pen.setJoinStyle(Qt.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawPolygon(QPolygonF([QPointF(x + s * 0.50, y + s * 0.14),
+                                 QPointF(x + s * 0.85, y + s * 0.32),
+                                 QPointF(x + s * 0.50, y + s * 0.50),
+                                 QPointF(x + s * 0.15, y + s * 0.32)]))
+        for fx in (0.15, 0.85):
+            p.drawLine(QPointF(x + s * fx, y + s * 0.32),
+                       QPointF(x + s * fx, y + s * 0.68))
+        p.drawLine(QPointF(x + s * 0.50, y + s * 0.50),
+                   QPointF(x + s * 0.50, y + s * 0.86))
+        p.drawLine(QPointF(x + s * 0.15, y + s * 0.68),
+                   QPointF(x + s * 0.50, y + s * 0.86))
+        p.drawLine(QPointF(x + s * 0.85, y + s * 0.68),
+                   QPointF(x + s * 0.50, y + s * 0.86))
+    elif typ == "collection":
+        # Blender's own idea of a collection: a box holding boxes
+        pen = QPen(c, max(1.1, s * 0.10))
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawRect(QRectF(x + s * 0.12, y + s * 0.20, s * 0.76, s * 0.62))
+        p.setPen(Qt.NoPen)
+        p.setBrush(c)
+        for fx in (0.30, 0.50, 0.70):
+            p.drawRect(QRectF(x + s * (fx - 0.07), y + s * 0.44,
+                              s * 0.14, s * 0.22))
+    elif typ == "material":
+        # a shaded sphere with a specular dot = a surface
+        p.setPen(Qt.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(QRectF(x + s * 0.14, y + s * 0.14, s * 0.72, s * 0.72))
+        p.setBrush(QColor(255, 255, 255, 190))
+        p.drawEllipse(QPointF(x + s * 0.36, y + s * 0.34), s * 0.10, s * 0.10)
+    elif typ == "nodegroup":
+        # two nodes and a noodle
+        pen = QPen(c, max(1.1, s * 0.10))
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawRoundedRect(QRectF(x + s * 0.10, y + s * 0.16, s * 0.30, s * 0.30),
+                          s * 0.06, s * 0.06)
+        p.drawRoundedRect(QRectF(x + s * 0.58, y + s * 0.54, s * 0.30, s * 0.30),
+                          s * 0.06, s * 0.06)
+        p.drawLine(QPointF(x + s * 0.40, y + s * 0.31),
+                   QPointF(x + s * 0.58, y + s * 0.69))
 
 
 # Filter labels that are not just the type key. The keys stay short because
 # they are the folder EXTENSION (`name.renderpreset`); only what the user reads
 # gets spelled out (Marty, 2026-08-05: 'in studio library add "Render Presets"
 # filter').
-TYPE_LABELS = {"renderpreset": "render presets"}
+TYPE_LABELS = {"renderpreset": "render presets",
+               # Blender assets — plural, to read as a filter rather than as
+               # the name of one thing, the same as every other row.
+               "object": "objects", "collection": "collections",
+               "material": "materials", "nodegroup": "node groups"}
 
 
 def type_label(typ):

@@ -42,7 +42,7 @@ scroll while a 461-bone rig evaluates next door.
 
 | Tab | What it does |
 |---|---|
-| **Studio Library** | Ten kinds of reusable item — poses, animations, selection sets, mirror tables, bone remaps, shape keys, Alembic caches, vertex groups, picker layouts, render presets — in one searchable grid |
+| **Studio Library** | Ten kinds of reusable item — poses, animations, selection sets, mirror tables, bone remaps, shape keys, Alembic caches, vertex groups, picker layouts, render presets — in one searchable grid. Plus **Assets**: objects, collections, materials and node groups, stored in a folder registered with Blender, so the same things show in its own Asset Browser |
 | **Rendering** | A render queue that survives a crash, a one-button denoising compositor, and render presets covering 164 settings |
 | **Bone picker** | Trace clickable buttons over a reference picture, drawn inside Blender's own Image Editor |
 | **Anim Layers** | Layered animation on Blender's NLA, plus notes and tags on timeline markers |
@@ -90,7 +90,7 @@ See **[Building from source](https://madihsonnsfw.github.io/madihsonnsfw-toolset
 powershell -ExecutionPolicy Bypass -File tests\run_all.ps1
 ```
 
-92 suites, roughly 5,150 checks. Set `$env:MADI_BLENDER` if your Blender is not
+94 suites, roughly 5,280 checks. Set `$env:MADI_BLENDER` if your Blender is not
 where the runner expects. See
 **[Running the tests](https://madihsonnsfw.github.io/madihsonnsfw-toolset/testing/)**.
 

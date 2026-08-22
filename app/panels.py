@@ -223,6 +223,10 @@ class Sidebar(QWidget):
         lay.setContentsMargins(8, 8, 4, 8)
 
         lab = QLabel("Type")
+        self.type_label = lab
+        # 'items' until something says otherwise; `set_mode` is what the tab's
+        # Items | Assets switch drives.
+        self.mode = "items"
         lab.setObjectName("dim")
         lay.addWidget(lab)
         # ⚠ EVERY TYPE HAS TO BE HERE. `LibraryView.refilter` drops any item
@@ -241,8 +245,14 @@ class Sidebar(QWidget):
         # they share this one parent — the gesture is resolved by asking the
         # parent what is under the cursor. Keep them siblings.
         self.type_checks = {}
-        for typ in ("pose", "anim", "set", "mirror", "shapes", "remap", "abc",
-                    "vgroups", "picker", "renderpreset"):
+        self.item_types = ("pose", "anim", "set", "mirror", "shapes", "remap",
+                           "abc", "vgroups", "picker", "renderpreset")
+        # ⚠ THE FOURTH TYPE FAMILY, AND THE SILENT REGISTRATION. These four are
+        # `library.ASSET_KINDS`; a kind missing from this dict is not
+        # "unfilterable", it is INVISIBLE — `LibraryView.refilter` drops any
+        # item whose type has no checkbox, so it saves, scans and never draws.
+        self.asset_types = ("object", "collection", "material", "nodegroup")
+        for typ in self.item_types:
             cb = widgets.DragCheckBox(gridmod.type_label(typ))
             cb.setIcon(gridmod.type_icon(typ, 14))
             cb.setChecked(True)
@@ -250,7 +260,28 @@ class Sidebar(QWidget):
             self.type_checks[typ] = cb
             lay.addWidget(cb)
 
-        lab2 = QLabel("Folders")
+        # Their own heading, because they are a different KIND of thing: the
+        # ten above live in your .blend already, these bring new datablocks in.
+        # ⚠ NO "Assets" HEADING HERE, deliberately. Option B's mockup showed
+        # both families at once and needed one; option C — the one Marty
+        # picked — shows exactly one family at a time and renames the heading
+        # above instead. A heading that is hidden in both modes is a widget
+        # nobody can ever see.
+        for typ in self.asset_types:
+            cb = widgets.DragCheckBox(gridmod.type_label(typ))
+            cb.setIcon(gridmod.type_icon(typ, 14))
+            cb.setChecked(True)
+            cb.toggled.connect(lambda *_: self.selectionChanged.emit())
+            self.type_checks[typ] = cb
+            lay.addWidget(cb)
+            # ⚠ Hidden HERE rather than by calling set_mode() at the end of
+            # __init__: set_mode touches widgets built further down and emits
+            # a signal, so calling it mid-construction is an ordering trap for
+            # whoever adds the next widget. Two lines beat a constraint.
+            cb.hide()
+
+        self.folders_label = QLabel("Folders")
+        lab2 = self.folders_label
         lab2.setObjectName("dim")
         lay.addWidget(lab2)
         self.tree = FolderTree()
@@ -314,6 +345,49 @@ class Sidebar(QWidget):
         self.tree.expandAll()
         target = nodes.get(prev, root)
         self.tree.setCurrentItem(target)
+        self.tree.blockSignals(False)
+
+    def set_catalogs(self, catalogs, counts):
+        """The same tree, holding Blender's catalogs instead of folders.
+
+        ⚠ A catalog is NOT a folder, and the difference matters here: a
+        catalog path can name a level that has no line of its own
+        (`Geonodes/Slime` with no `Geonodes`), because Blender treats the
+        string as the hierarchy. Missing parents are filled in, or half the
+        tree would hang off the root with its full path as its label.
+
+        ⚠ The UserRole is the catalog PATH, so `current_folder()` keeps
+        working and `refilter` needs no idea which mode it is in.
+        """
+        self.tree.blockSignals(True)
+        prev = self.current_folder()
+        self.tree.clear()
+        root = QTreeWidgetItem(["All  (%d)" % counts.get(None, 0)])
+        root.setData(0, Qt.UserRole, None)
+        root.setIcon(0, library_icon())
+        self.tree.addTopLevelItem(root)
+
+        paths = sorted({c["path"] for c in catalogs if c.get("path")},
+                       key=str.lower)
+        filled = set()
+        for path in paths:
+            parts = path.split("/")
+            for depth in range(1, len(parts) + 1):
+                filled.add("/".join(parts[:depth]))
+
+        nodes = {}
+        for path in sorted(filled, key=str.lower):
+            parts = path.split("/")
+            parent = root if len(parts) == 1 else nodes.get(
+                "/".join(parts[:-1]), root)
+            n = counts.get(path, 0)
+            node = QTreeWidgetItem([parts[-1] + ("  (%d)" % n if n else "")])
+            node.setData(0, Qt.UserRole, path)
+            node.setIcon(0, folder_icon())
+            parent.addChild(node)
+            nodes[path] = node
+        self.tree.expandAll()
+        self.tree.setCurrentItem(nodes.get(prev, root))
         self.tree.blockSignals(False)
 
     def _on_tree_menu(self, pos):
@@ -380,7 +454,37 @@ class Sidebar(QWidget):
         return sel[0].data(0, Qt.UserRole) if sel else None
 
     def enabled_types(self):
-        return {t for t, cb in self.type_checks.items() if cb.isChecked()}
+        """Checked types IN THE CURRENT MODE.
+
+        ⚠ Not simply "every checked box". Assets mode hides the ten item
+        rows and Items mode hides the four asset rows, and a hidden box is
+        still checked — filtering on `isChecked()` alone would show asset
+        tiles in Items mode and poses in Assets mode, which is precisely the
+        thing the switch exists to stop. Membership, not `isVisible()`:
+        visibility is False for every widget before the window is shown, so
+        the first filter after startup would return nothing.
+        """
+        allowed = (self.asset_types if self.mode == "assets"
+                   else self.item_types)
+        return {t for t, cb in self.type_checks.items()
+                if cb.isChecked() and t in allowed}
+
+    def set_mode(self, mode):
+        """'items' (the ten library types) or 'assets' (Blender datablocks).
+
+        The two halves of the tab share one sidebar; what changes is which
+        rows are on show, and what the two headings above them are called.
+        """
+        self.mode = "assets" if mode == "assets" else "items"
+        assets = self.mode == "assets"
+        self.type_label.setText("Kind  (Blender id type)" if assets else "Type")
+        self.folders_label.setText("Catalogs  (from Blender)" if assets
+                                   else "Folders")
+        for typ in self.item_types:
+            self.type_checks[typ].setVisible(not assets)
+        for typ in self.asset_types:
+            self.type_checks[typ].setVisible(assets)
+        self.selectionChanged.emit()
 
     def set_tags(self, counts):
         """counts: {tag: n_items}. Checked state survives the rebuild."""
@@ -477,6 +581,7 @@ class InfoPanel(QWidget):
     blendEnded = Signal()
     recaptureRequested = Signal(object)     # item -> re-render its thumbnail/sequence
     deleteRequested = Signal()              # delete the grid's selected items
+    markRequested = Signal(str, str, str)   # kind, name, catalog
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -740,7 +845,71 @@ class InfoPanel(QWidget):
         # there is nothing left that wants to grow, and without this the save
         # box would stretch to fill the window instead of sitting at the top.
         box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.save_box = box
         lay.addWidget(box)
+
+        # ---- Assets: a different verb, so a different box (2026-08-22).
+        # ⚠ NOT another button in the box above. Saving a pose writes into an
+        # item; marking an asset also CHANGES MARTY'S OPEN FILE — the datablock
+        # becomes an asset in Blender too — and an action with a side effect
+        # that big does not belong in a row of ten that have none.
+        abox = QFrame()
+        abox.setObjectName("panel")
+        av = QVBoxLayout(abox)
+        alab = QLabel("Mark as asset  (into current folder)")
+        alab.setObjectName("dim")
+        alab.setWordWrap(True)
+        av.addWidget(alab)
+        self.asset_name = QLineEdit()
+        self.asset_name.setPlaceholderText("name…  (blank = the datablock's)")
+        av.addWidget(self.asset_name)
+        self.asset_kind = QComboBox()
+        for key, label in (("object", "Object"), ("collection", "Collection"),
+                           ("material", "Material"),
+                           ("nodegroup", "Node group")):
+            self.asset_kind.addItem(label, key)
+        self.asset_kind.setToolTip(
+            "What to take from the selection. An Object brings its materials "
+            "and modifiers with it.")
+        av.addWidget(self.asset_kind)
+        arow = QHBoxLayout()
+        clab = QLabel("Catalog")
+        clab.setObjectName("dim")
+        arow.addWidget(clab)
+        self.asset_catalog = QComboBox()
+        self.asset_catalog.setEditable(True)      # a new catalog is just typed
+        # ⚠ An editable combo with nothing chosen renders as an empty box, which
+        # reads as "this control is broken" rather than "optional". The
+        # placeholder says what belongs there and that leaving it blank is fine.
+        self.asset_catalog.lineEdit().setPlaceholderText(
+            "e.g. Geonodes/Slime  (optional)")
+        self.asset_catalog.setToolTip(
+            "Blender's own catalog, e.g. Geonodes/Slime. Type a new one and it "
+            "is added to the library's blender_assets.cats.txt — the same file "
+            "the Asset Browser reads.")
+        arow.addWidget(self.asset_catalog, 1)
+        av.addLayout(arow)
+        self.btn_mark = QPushButton("Mark selected…")
+        self.btn_mark.setObjectName("accent")
+        self.btn_mark.setToolTip(
+            "Marks what is selected in Blender as an asset and stores it here. "
+            "⚠ This also marks it in your open file, which is the point: it "
+            "then shows in Blender's own Asset Browser.")
+        self.btn_mark.clicked.connect(
+            lambda: self.markRequested.emit(
+                self.asset_kind.currentData(),
+                self.asset_name.text().strip(),
+                self.asset_catalog.currentText().strip()))
+        av.addWidget(self.btn_mark)
+        self.asset_box = abox
+        lay.addWidget(abox)
+        # ⚠⚠ HIDDEN **AFTER** `addWidget`, and this is not a style choice.
+        # Adding a widget to a layout SHOWS it, so `hide()` before the add is
+        # undone by the add. The box was therefore live in Items mode where
+        # nobody could see it, and its two combos put **98 px** under the whole
+        # window's minimum — a `app_ui_test.py` ceiling failure whose message
+        # named four widgets that had nothing to do with it.
+        abox.hide()
         # Stretch 0, so it only absorbs space when the detail block (stretch 1)
         # is hidden.
         lay.addStretch(0)
@@ -759,6 +928,33 @@ class InfoPanel(QWidget):
         self.btn_recapture.setEnabled(has and not busy and not self._item.bare
                                       and self._item.type not in ("mirror", "remap"))
         self.blend_slider.setEnabled(not busy)
+
+    def set_mode(self, mode):
+        """Swap the ten Save buttons for the one Mark button, and back.
+
+        ⚠ Hidden, not disabled. A greyed-out "Save Pose" in Assets mode would
+        read as "the bridge is busy" — which is what greying means everywhere
+        else in this app — rather than as "wrong half of the tab".
+        """
+        assets = mode == "assets"
+        self.save_box.setVisible(not assets)
+        self.asset_box.setVisible(assets)
+
+    def set_catalog_choices(self, catalogs):
+        """The catalogs already in this library, offered as suggestions.
+
+        ⚠ Editable, and the typed text is kept: the combo is a shortcut, not
+        a whitelist. Blender lets you invent a catalog by typing a path and so
+        does this — restoring the current text after the rebuild is what stops
+        a rescan mid-typing from eating a half-written catalog name.
+        """
+        typed = self.asset_catalog.currentText()
+        self.asset_catalog.blockSignals(True)
+        self.asset_catalog.clear()
+        self.asset_catalog.addItems(sorted({c for c in catalogs if c},
+                                           key=str.lower))
+        self.asset_catalog.setCurrentText(typed)
+        self.asset_catalog.blockSignals(False)
 
     def options(self):
         start = self.anim_start.value()

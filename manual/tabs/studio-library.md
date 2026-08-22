@@ -2,6 +2,13 @@
 
 A shared library for anything you reuse, browsable as a grid of thumbnails.
 
+The tab has two halves, switched in the top left:
+
+- **Items** — poses, animations, sets and the rest, saved out of your rig.
+- **Assets** — Blender objects, collections, materials and node groups. This
+  half **is a Blender asset library**: what you store here appears in Blender's
+  own Asset Browser. See [Assets](#assets) below.
+
 ## The ten item types
 
 All saved and applied the same way.
@@ -44,6 +51,60 @@ triangulation, hair and particles, render-versus-viewport evaluation, and
 sub-frame sampling. What was actually used is written into the item.
 
 ---
+
+## Assets
+
+Switch the toolbar to **Assets** and the library becomes a Blender asset
+library. The **Folders** tree is replaced by Blender's **Catalogs**, the
+**Type** filter becomes **Kind**, and the Save buttons become one
+**Mark selected**.
+
+| Kind | What comes with it |
+|---|---|
+| **Object** | Its materials and modifiers |
+| **Collection** | Everything in it |
+| **Material** | The material, with its node tree |
+| **Node group** | Geometry-node and shader groups |
+
+### Storing one
+
+Select what you want in Blender, choose the **Kind**, give it a name, pick a
+**Catalog** — or type a new one, which is added to the library's catalog file
+exactly as Blender would — and press **Mark selected**.
+
+This also marks the datablock **in your open file**, which is the point: that
+is what puts it in Blender's Asset Browser. If your selection offers several
+of the chosen kind, it asks which one, and stores one per press.
+
+Blender renders previews for objects and materials but not for node groups or
+collections. Those get the grid's placeholder tile, and the status bar says so.
+
+### Using one
+
+Double-click a tile. The dropdown beside the search box decides what that does
+— the same three choices Blender's own Asset Browser offers:
+
+| | |
+|---|---|
+| **Append** | A copy you own, reusing materials already in the file rather than making `Wet skin.001` |
+| **Append (new copy)** | A copy of everything, even where it duplicates |
+| **Link** | It stays owned by the library file; edits happen there |
+
+A material or a node group is put **in the file, not in the scene** — pick it
+from a material slot or a modifier dropdown. Objects and collections are linked
+into the scene so you can see them.
+
+The status bar reports the name that actually landed, which is not always the
+one you asked for: an append that had to make a copy says so.
+
+### What else works on them
+
+Folders, tags, colour labels, search, versions, **Zip for sharing** and
+**Import** all treat an asset as an ordinary item. Overwriting one versions the
+old one, `.blend` and all.
+
+Browsing works with Blender closed, like the rest of the tab. Storing and
+applying need it.
 
 ## Browsing and organising
 
